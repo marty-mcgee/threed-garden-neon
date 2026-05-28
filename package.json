@@ -1,6 +1,6 @@
 {
   "name": "threed-garden-neon",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3333",
@@ -8,9 +8,13 @@
     "start": "next start -p 3333",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "echo 'Use db:push for development'",
-    "db:push": "drizzle-kit push --strict --verbose --force",
+    "db:push": "drizzle-kit push --force",
     "db:studio": "drizzle-kit studio",
-    "auth:generate": "npx @better-auth/cli@latest generate --config src/lib/auth/server.ts --output src/lib/auth/schema.ts"
+    "auth:generate": "npx @better-auth/cli@latest generate --config src/lib/auth/server.ts --output src/lib/auth/schema.ts",
+    "db:push:threed": "drizzle-kit push --config=./drizzle.threed.config.ts --force",
+    "db:generate:threed": "drizzle-kit generate --config=./drizzle.threed.config.ts",
+    "db:migrate:threed": "drizzle-kit migrate --config=./drizzle.threed.config.ts",
+    "db:studio:threed": "drizzle-kit studio --config=./drizzle.threed.config.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
