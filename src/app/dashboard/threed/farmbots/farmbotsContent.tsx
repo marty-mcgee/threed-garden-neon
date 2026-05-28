@@ -361,7 +361,7 @@ export default function FarmBotsContent() {
                           </div>
                         </div>
                       </td>
-                    </table>
+                    </tr>
                   )}
                 </React.Fragment>
               ))}
