@@ -6,19 +6,19 @@ import dynamic from 'next/dynamic';
 import { useToast } from '@/components/ui/toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Box, Sprout, Sun, Droplets, Thermometer } from 'lucide-react';
+import { RefreshCw, Box, Sprout } from 'lucide-react';
 
 // Dynamically import the 3D viewer to avoid SSR issues
-const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
+const GardenViewer = dynamic(() => import('@/components/threed/GardenViewer'), {
   ssr: false,
   loading: () => (
-    <div className="w-full h-[800px] bg-muted rounded-xl flex items-center justify-center">
+    <div className="w-full h-[600px] bg-muted rounded-xl flex items-center justify-center">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
     </div>
   ),
 });
 
-interface Bed {
+interface GardenBed {
   id: number;
   name: string;
   shape: string;
@@ -32,23 +32,22 @@ interface Bed {
 
 interface Planting {
   id: number;
+  plantingId: string;
   plantName: string;
   plantType: string;
   quantity: number;
   positionX: number;
   positionZ: number;
   growthStage: string;
-  daysToMaturity: number;
 }
 
 export default function Garden3DPage() {
   const { showToast, ToastComponent } = useToast();
-  const [beds, setBeds] = useState<Bed[]>([]);
+  const [beds, setBeds] = useState<GardenBed[]>([]);
   const [plantings, setPlantings] = useState<Planting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
+  const [selectedBed, setSelectedBed] = useState<GardenBed | null>(null);
   const [selectedPlant, setSelectedPlant] = useState<Planting | null>(null);
-  const [weather, setWeather] = useState<any>(null);
   
   const fetchData = async () => {
     try {
@@ -77,26 +76,14 @@ export default function Garden3DPage() {
       if (plantingsData.success) {
         setPlantings(plantingsData.data.map((item: any) => ({
           id: item.planting.id,
+          plantingId: item.planting.plantingId,
           plantName: item.plant?.commonName || 'Unknown Plant',
           plantType: item.plant?.type || 'Vegetable',
           quantity: item.planting.quantity || 1,
           positionX: parseFloat(item.planting.positionX || 0),
           positionZ: parseFloat(item.planting.positionZ || 0),
           growthStage: item.planting.growthStage || 'vegetative',
-          daysToMaturity: item.plant?.daysToMaturity || 60,
         })));
-      }
-      
-      // Fetch current weather
-      const weatherRes = await fetch('/api/threed/weather?limit=1');
-      const weatherData = await weatherRes.json();
-      if (weatherData.success && weatherData.data.length > 0) {
-        const latest = weatherData.data[0];
-        setWeather({
-          temperature: latest.temperature,
-          condition: latest.temperature > 80 ? 'sunny' : 'cloudy',
-          rainfall: latest.rainfallInches || 0,
-        });
       }
       
     } catch (error) {
@@ -111,15 +98,13 @@ export default function Garden3DPage() {
     fetchData();
   }, []);
   
-  const handleBedSelect = (bed: Bed) => {
+  const handleBedClick = (bed: GardenBed) => {
     setSelectedBed(bed);
-    setSelectedPlant(null);
     showToast(`Selected: ${bed.name}`, 'info');
   };
   
-  const handlePlantSelect = (plant: Planting) => {
+  const handlePlantClick = (plant: Planting) => {
     setSelectedPlant(plant);
-    setSelectedBed(null);
     showToast(`${plant.plantName} - ${plant.growthStage} stage`, 'info');
   };
   
@@ -137,9 +122,9 @@ export default function Garden3DPage() {
       
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">3D Garden Explorer</h1>
+          <h1 className="text-2xl font-bold text-foreground">3D Garden View</h1>
           <p className="text-sm text-muted-foreground">
-            {beds.length} beds • {plantings.reduce((sum, p) => sum + p.quantity, 0)} plants
+            {beds.length} beds • {plantings.length} plants
           </p>
         </div>
         
@@ -150,31 +135,6 @@ export default function Garden3DPage() {
           </Button>
         </div>
       </div>
-      
-      {/* Weather Widget */}
-      {weather && (
-        <Card className="border-blue-200 dark:border-blue-900">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1">
-                  <Thermometer className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm font-medium">{weather.temperature}°F</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Droplets className="w-4 h-4 text-blue-500" />
-                  <span className="text-sm font-medium">{weather.rainfall || 0}" rain</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Sun className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium capitalize">{weather.condition}</span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">Current Conditions</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
       
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -204,7 +164,7 @@ export default function Garden3DPage() {
           <CardContent className="p-3">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-muted-foreground">Growing</p>
+                <p className="text-xs text-muted-foreground">Vegetative</p>
                 <p className="text-2xl font-bold text-lime-600">{plantings.filter(p => p.growthStage === 'vegetative').length}</p>
               </div>
               <Sprout className="w-5 h-5 text-lime-600" />
@@ -215,7 +175,7 @@ export default function Garden3DPage() {
           <CardContent className="p-3">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-muted-foreground">Flowering/Fruiting</p>
+                <p className="text-xs text-muted-foreground">Fruiting/Flowering</p>
                 <p className="text-2xl font-bold text-orange-600">{plantings.filter(p => p.growthStage === 'fruiting' || p.growthStage === 'flowering').length}</p>
               </div>
               <Sprout className="w-5 h-5 text-orange-600" />
@@ -225,15 +185,24 @@ export default function Garden3DPage() {
       </div>
       
       {/* 3D Garden Viewer */}
-      <Card className="overflow-hidden">
-        <CardContent className="p-0">
-          <ThreeDGarden
-            beds={beds}
-            plantings={plantings}
-            weather={weather}
-            onBedSelect={handleBedSelect}
-            onPlantSelect={handlePlantSelect}
-          />
+      <Card>
+        <CardContent className="p-0 overflow-hidden rounded-xl">
+          {beds.length > 0 ? (
+            <div className="h-[600px]">
+              <GardenViewer
+                beds={beds}
+                plantings={plantings}
+                onBedClick={handleBedClick}
+                onPlantClick={handlePlantClick}
+              />
+            </div>
+          ) : (
+            <div className="h-[600px] bg-muted flex flex-col items-center justify-center">
+              <Box className="w-12 h-12 text-muted-foreground mb-2" />
+              <p className="text-muted-foreground">No garden beds configured</p>
+              <p className="text-sm text-muted-foreground mt-1">Create a bed to start your 3D garden</p>
+            </div>
+          )}
         </CardContent>
       </Card>
       
@@ -243,21 +212,17 @@ export default function Garden3DPage() {
           <CardContent className="p-4">
             <h3 className="font-semibold text-foreground mb-2">Selected Item</h3>
             {selectedBed && (
-              <div className="text-sm space-y-1">
+              <div className="text-sm">
                 <p><span className="font-medium">Bed:</span> {selectedBed.name}</p>
                 <p><span className="font-medium">Dimensions:</span> {selectedBed.widthFeet}' × {selectedBed.lengthFeet}'</p>
-                <p><span className="font-medium">Color:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: selectedBed.color }} /></p>
+                <p><span className="font-medium">Color:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: selectedBed.color }}></span></p>
               </div>
             )}
             {selectedPlant && (
-              <div className="text-sm space-y-1">
+              <div className="text-sm">
                 <p><span className="font-medium">Plant:</span> {selectedPlant.plantName}</p>
-                <p><span className="font-medium">Type:</span> {selectedPlant.plantType}</p>
                 <p><span className="font-medium">Growth Stage:</span> {selectedPlant.growthStage}</p>
                 <p><span className="font-medium">Quantity:</span> {selectedPlant.quantity}</p>
-                {selectedPlant.daysToMaturity && (
-                  <p><span className="font-medium">Days to Maturity:</span> {selectedPlant.daysToMaturity}</p>
-                )}
               </div>
             )}
           </CardContent>
