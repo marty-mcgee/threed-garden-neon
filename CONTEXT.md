@@ -169,22 +169,22 @@ bun run db:migrate
 bun run db:push
 
 # Manual Polling
-curl "http://localhost:3000/api/chp-cad/poll?action=poll"
-curl "http://localhost:3000/api/chp-historical/poll?action=poll&limit=500&startDate=2026-01-01"
-curl "http://localhost:3000/api/bay-area-511/poll?action=poll"
-curl "http://localhost:3000/api/caltrans/poll"
+curl "http://localhost:3333/api/chp-cad/poll?action=poll"
+curl "http://localhost:3333/api/chp-historical/poll?action=poll&limit=500&startDate=2026-01-01"
+curl "http://localhost:3333/api/bay-area-511/poll?action=poll"
+curl "http://localhost:3333/api/caltrans/poll"
 
 # Check Stats
-curl "http://localhost:3000/api/chp-cad/poll?action=stats"
-curl "http://localhost:3000/api/chp-historical/collisions/stats"
-curl "http://localhost:3000/api/bay-area-511/poll?action=stats"
-curl "http://localhost:3000/api/caltrans/closures/stats"
+curl "http://localhost:3333/api/chp-cad/poll?action=stats"
+curl "http://localhost:3333/api/chp-historical/collisions/stats"
+curl "http://localhost:3333/api/bay-area-511/poll?action=stats"
+curl "http://localhost:3333/api/caltrans/closures/stats"
 
 # Test Cron Jobs Locally
-curl "http://localhost:3000/api/bay-area-511/cron"
-curl "http://localhost:3000/api/caltrans/cron"
-curl "http://localhost:3000/api/chp-cad/cron"
-curl "http://localhost:3000/api/chp-historical/cron"
+curl "http://localhost:3333/api/bay-area-511/cron"
+curl "http://localhost:3333/api/caltrans/cron"
+curl "http://localhost:3333/api/chp-cad/cron"
+curl "http://localhost:3333/api/chp-historical/cron"
 
 ---
 
@@ -305,7 +305,7 @@ Your `CONTEXT.md` is **production-grade documentation**. Any future AI session (
 bun run src/lib/scripts/backfill-chp-historical.ts
 
 # Incremental polling
-curl "http://localhost:3000/api/chp-historical/poll?action=poll"
+curl "http://localhost:3333/api/chp-historical/poll?action=poll"
 
 ## 🚀 Next Steps
 
@@ -914,5 +914,140 @@ OPENWEATHER_API_KEY=your_api_key
 
 ## [MM] CONTEXT.md
 **Last Updated: May 28, 2026 @ 12:12pm PST**
+
+---
+
+📊 Dashboard Layout
+
+The main dashboard (/dashboard) is organized into two sections:
+Traffic Services (6 tabs)
+
+    Overview, CHP Live, Bay Area 511, Caltrans, CalFire, CHP Historical
+
+ThreeD Garden (9 tabs)
+
+    Garden Overview, Plants, Beds, Plantings, Tasks, Harvests, Weather, FarmBots, Analytics
+
+Layout Features
+
+    Color-coded tabs for each service
+
+    Section headers with visual separators
+
+    Responsive design (icons only on mobile)
+
+    Theme-aware styling (light/dark mode)
+
+    Sticky header with live status indicator
+
+🚀 Common Commands (ThreeD)
+bash
+
+# Database
+bun run db:generate
+bun run db:migrate
+bun run db:push
+
+# Seed initial plant data
+bun run src/lib/scripts/seed-threed-plants.ts
+
+# Weather sync
+curl "http://localhost:3333/api/threed/weather/poll"
+
+# FarmBot sync
+curl "http://localhost:3333/api/threed/farmbots/poll"
+
+# FarmBot water command (replace 1 with device ID)
+curl -X POST "http://localhost:3333/api/threed/farmbots/1/water" \
+  -H "Content-Type: application/json" \
+  -d '{"durationMs": 30000}'
+
+# FarmBot move command
+curl -X POST "http://localhost:3333/api/threed/farmbots/1/move" \
+  -H "Content-Type: application/json" \
+  -d '{"x": 0, "y": 0, "z": 0}'
+
+# View 3D garden
+open "http://localhost:3333/dashboard/threed/garden"
+
+# View analytics
+open "http://localhost:3333/dashboard/threed/garden/analytics"
+
+📁 ThreeD File Structure
+text
+
+src/
+├── app/
+│   ├── api/threed/           # 8 service API routes + analytics
+│   └── dashboard/threed/     # 9 dashboard pages
+├── components/threed/        # 3D components (GardenBed, GardenPlant, ThreeDGarden, etc.)
+├── lib/
+│   ├── auth/schema.ts        # threed_* tables
+│   └── services/threed/      # Pollers (PlantDataPoller, WeatherPoller, FarmBotPoller)
+└── lib/scripts/seed-threed-plants.ts
+
+🔄 Recent Updates (May 28, 2026)
+ThreeD Garden Module - Complete
+
+    Added 8 core services (Plants, Beds, Plantings, Tasks, Harvests, Weather, FarmBots, Analytics)
+
+    Implemented 3D garden viewer with React Three Fiber
+
+    Added growth stage visualization (plants change size/color as they mature)
+
+    Integrated FarmBot API for real device control
+
+    Added weather monitoring with OpenWeatherMap
+
+    Created master dashboard with unified view of all garden data
+
+    Added analytics dashboard for harvest trends
+
+    Full CRUD with pagination on all dashboards
+
+Layout Improvements
+
+    Reorganized dashboard tabs into "Traffic Services" and "ThreeD Garden" sections
+
+    Added color-coded tabs with active indicators
+
+    Improved responsive design
+
+⚠️ Known Issues & Solutions (ThreeD)
+Issue	Solution
+3D components not rendering	Ensure 'use client' directive and dynamic import with ssr: false
+FarmBot API rate limits	Polling interval set to 15 minutes minimum
+Weather API key required	Sign up at OpenWeatherMap for free tier
+Large plant database	Pagination implemented on all tables (25 items per page)
+📝 How to Update This File
+
+After any major development session, ask the AI:
+
+    "Please update CONTEXT.md to include [what we changed]"
+
+Then copy/paste the updated section into this file and commit to GitHub.
+text
+
+
+## 🚀 Ready for Production
+
+Your ThreeD Garden is now complete and ready for beta release! The platform includes:
+
+- ✅ **9 Dashboard Pages** (Master + 8 services)
+- ✅ **8 API Services** with full CRUD
+- ✅ **3 Polling Services** (Weather, FarmBot, Plants)
+- ✅ **3D Visualization** with growth stages
+- ✅ **FarmBot Integration** with real device control
+- ✅ **Analytics Dashboard** with harvest trends
+- ✅ **Full Pagination** on all tables
+- ✅ **Dark/Light Theme** support
+
+Commit and deploy! 🌱🎉
+
+
+---
+
+## [MM] CONTEXT.md
+**Last Updated: May 28, 2026 @ 12:14pm PST**
 
 ---
