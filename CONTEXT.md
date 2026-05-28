@@ -227,6 +227,332 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 - **Does not affect production builds on Vercel** — map works perfectly in production
 - Fix: Add a `key` prop to `MapContainer` that changes on hot reload (if needed)
 
+
+---
+
+# Export dashboard data to CSV+JSON
+# (Click "Export" button on main dashboard)
+
+---
+
+✅ Review Summary
+Section	Status	Notes
+Tech Stack	✅ Complete	Bun, Next.js, Neon, Drizzle, shadcn/ui
+Data Sources	✅ Accurate	5 sources with correct methods
+Main Dashboard	✅ Excellent	Layer toggle cards, eye icons, show/hide all
+Service Dashboards	✅ Complete	4 dashboards with expandable rows
+API Routes	✅ Accurate	Cron jobs, polling endpoints, showAll parameter
+Database Schema	✅ Clear	7 key tables listed
+UI Components	✅ Good	shadcn/ui components documented
+Known Issues	✅ Honest	502 errors, CKAN limitation, geocoding
+File Structure	✅ Very thorough	Full tree showing 82 directories, 134 files
+Commands	✅ Useful	Dev, DB, polling, cron tests
+🔍 Minor Observations (Optional Improvements)
+Issue	Suggestion
+Duplicate content	The "UI Design Improvements" section repeats some content from "Main Dashboard" section
+Duplicate commands	"Common Commands" appears twice (once before file tree, once after)
+Old working files	page-new-working-0.tsx and page-new.tsx in dashboard folder — can be archived
+Missing Leaflet dev issue	The known dev-only getPane is undefined error is documented ✅
+📝 Suggested Cleanup (Optional)
+
+## 🎯 Overall Assessment
+
+| Category | Rating |
+|----------|--------|
+| **Completeness** | ⭐⭐⭐⭐⭐ (5/5) |
+| **Accuracy** | ⭐⭐⭐⭐⭐ (5/5) |
+| **Organization** | ⭐⭐⭐⭐⭐ (5/5) |
+| **Usefulness for AI** | ⭐⭐⭐⭐⭐ (5/5) |
+
+Your `CONTEXT.md` is **production-grade documentation**. Any future AI session (or new developer) can pick this up and immediately understand your entire application architecture, data flows, and UI patterns.
+
+**Great work!** 🎉
+
+## [MM] CONTEXT.md
+
+---
+
+## ⚙️ Polling Control & Optimization (May 25, 2026)
+
+### Dashboard Data Fetching
+- **Unified endpoint:** `/api/dashboard` combines all 4 data sources
+- **Single API call** per refresh instead of 4 separate calls
+- **Auto-refresh interval:** 60 seconds (user-toggleable)
+- **Caching:** 30-second cache to prevent duplicate requests
+
+### Cron Job Management
+- **Production:** Controlled schedules in `vercel.json`
+- **Development:** Disabled via dummy schedule (`0 0 31 2 *`)
+- **Manual triggers:** Available via `/api/*/poll` endpoints
+
+### Duplicate Prevention
+- **Concurrent fetch blocking:** `isFetching` ref prevents overlapping requests
+- **React Strict Mode:** Handles double-mounting gracefully
+- **Unique keys:** Fallback IDs when primary ID is undefined
+
+---
+
+## 🔄 CHP Historical Poller - Backfill + Incremental
+
+### Architecture
+- **One-time backfill script** (`scripts/backfill-chp-historical.ts`) imports all historical data
+- **Simple incremental poller** only fetches records since the latest date in database
+- **Local counties only:** Humboldt (12) and Mendocino (23)
+
+### Usage
+```bash
+# Backfill (run once)
+bun run src/lib/scripts/backfill-chp-historical.ts
+
+# Incremental polling
+curl "http://localhost:3000/api/chp-historical/poll?action=poll"
+
+## 🚀 Next Steps
+
+Your CHP Historical Poller is now:
+- ✅ Backfilled with all historical data
+- ✅ Configured for incremental updates
+- ✅ Ready for production cron jobs (once per day is sufficient)
+
+The 775 local records from 2026 are now available for your dashboard and maps!
+
+---
+
+## 🗺️ CHP Historical Dashboard - Pagination & Map Synchronization (May 26, 2026)
+
+### Feature Overview
+The CHP Historical dashboard now features **dual pagination controls** (top and bottom of table) with **map synchronization** — the map only shows markers for the currently visible page of records.
+
+### Key UX Improvements
+
+| Feature | Implementation |
+|---------|----------------|
+| **Dual Pagination** | Previous/Next buttons at both top and bottom of the table |
+| **Map Stays Visible** | Page changes do NOT auto-scroll — map remains in view |
+| **Map Synchronization** | Map markers update to show only current page collisions |
+| **Performance** | Map renders ≤50 markers per page instead of all 775 |
+| **Reusable Component** | `PaginationControls` used at both top and bottom |
+
+### User Benefits
+- **No scrolling** — Users can change pages without scrolling past the map
+- **Visual correlation** — Table rows match exactly what is on the map
+- **Fast navigation** — Map updates instantly on page change
+- **Better performance** — Map loads faster with fewer markers
+
+### Technical Implementation
+
+```tsx
+// Pagination state
+const [currentPage, setCurrentPage] = useState(0);
+const pageSize = 50;
+const totalPages = Math.ceil(totalRecords / pageSize);
+
+// Map shows only current page markers
+const currentPageData = getCurrentPageData();
+const mapEvents = currentPageWithCoords.map(c => ({...}));
+
+// No auto-scroll on page change
+const handlePageChange = (newPage: number) => {
+  setCurrentPage(newPage);
+  // Map stays visible - no automatic scrolling
+};
+
+---
+
+## 🔥 CalFire Incident Monitor
+
+### Overview
+The CalFire service monitors wildfire incidents across California using the official CAL FIRE incident API.
+
+### Features
+- **Real-time wildfire tracking** - Active and inactive incidents
+- **Statewide coverage** - All California counties
+- **Detailed incident data** - Acreage, containment, location, admin unit
+- **Historical records** - Complete incident history
+- **Map integration** - Visualize fire locations
+- **Filter by county and status** - Active, contained, extinguished
+
+### Polling Options
+| Endpoint | Action | Description |
+|----------|--------|-------------|
+| `/api/calfire/poll?action=poll` | Active only | Fast poll for cron jobs (active incidents only) |
+| `/api/calfire/poll?action=poll-norcal` | NorCal | All incidents (active+inactive) in Northern CA |
+| `/api/calfire/poll?action=poll-all` | Full | **All incidents statewide (no filter)** |
+
+### API Routes
+| Endpoint | Purpose |
+|----------|---------|
+| `/api/calfire` | Main data endpoint (supports `?showAll=true`) |
+| `/api/calfire/poll` | Manual polling with actions |
+| `/api/calfire/cron` | Cron job endpoint (every 30 min) |
+
+### Database Schema
+```typescript
+calfire_incidents {
+  id, uniqueId, name, type, status, county, location,
+  latitude, longitude, acresBurned, percentContained,
+  startedAt, updatedAt, extinguishedAt, adminUnit,
+  url, isActive, isCalFireIncident, rawData
+}
+
+---
+
+### CalFire Incidents Schema (`calfire_incidents`)
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | serial | Primary key |
+| `unique_id` | varchar(100) | Unique identifier from CalFire API |
+| `name` | varchar(200) | Fire name |
+| `type` | varchar(50) | Incident type (e.g., Wildfire) |
+| `status` | varchar(20) | Status (active, inactive, extinguished) |
+| `county` | varchar(100) | County where fire is located |
+| `location` | text | Detailed location description |
+| `latitude` | decimal(10,7) | Latitude coordinate |
+| `longitude` | decimal(10,7) | Longitude coordinate |
+| `acres_burned` | decimal(12,1) | Total acres burned |
+| `percent_contained` | decimal(5,1) | Containment percentage |
+| `started_at` | timestamp | When the fire started |
+| `updated_at` | timestamp | Last update from API |
+| `extinguished_at` | timestamp | When fire was extinguished |
+| `admin_unit` | varchar(200) | Responsible agency (e.g., CAL FIRE) |
+| `url` | text | Link to CalFire incident page |
+| `is_active` | boolean | Whether fire is currently active |
+| `is_calfire_incident` | boolean | Whether incident is CAL FIRE managed |
+| `raw_data` | jsonb | Complete original API response |
+| `fetched_at` | timestamp | When record was fetched |
+| `last_seen` | timestamp | Last time incident appeared in API |
+
+---
+
+## [MM] CONTEXT.md
+
+---
+
+
+---
+
+## 🌱 ThreeD Garden Module
+
+### Overview
+ThreeD Garden is a comprehensive garden management system integrated with the traffic monitoring platform. It provides tools for tracking plants, garden beds, plantings, tasks, harvests, weather, and FarmBot robots.
+
+### Tech Stack (ThreeD Specific)
+- **3D Visualization:** Three.js + React Three Fiber (@react-three/fiber, @react-three/drei)
+- **Database:** Neon Postgres + Drizzle ORM (threed_* tables)
+- **External APIs:** OpenWeatherMap, FarmBot API
+
+---
+
+## 🗄️ ThreeD Database Schema
+
+| Table | Purpose |
+|-------|---------|
+| `threed_plants` | Master plant database (common name, scientific name, type, growth parameters) |
+| `threed_beds` | Garden layout with 3D positioning (x, y, z, rotation, scale) |
+| `threed_plantings` | Plants placed in specific beds with growth stage tracking |
+| `threed_tasks` | Garden task management (watering, fertilizing, pruning, harvesting) |
+| `threed_harvests` | Yield tracking (quantity, weight, harvest date) |
+| `threed_weather_logs` | Environmental data (temperature, humidity, rainfall, wind) |
+| `threed_farmbots` | FarmBot device management (status, battery, firmware) |
+| `threed_farmbot_logs` | FarmBot activity and sensor logs |
+| `threed_system_logs` | Application logging |
+
+---
+
+## 🎨 ThreeD Dashboard Pages
+
+| Page | Route | Features |
+|------|-------|----------|
+| **Master Dashboard** | `/dashboard/threed` | Unified view with 3D garden, stats cards, quick actions |
+| **Plants** | `/dashboard/threed/plants` | Plant database with CRUD, pagination, filters |
+| **Beds** | `/dashboard/threed/beds` | Garden layout with 3D positioning |
+| **Plantings** | `/dashboard/threed/plantings` | Track plants in beds with growth stages |
+| **Tasks** | `/dashboard/threed/tasks` | Garden to-do with priorities and due dates |
+| **Harvests** | `/dashboard/threed/harvests` | Yield tracking with analytics |
+| **Weather** | `/dashboard/threed/weather` | Current conditions and history |
+| **FarmBots** | `/dashboard/threed/farmbots` | Device status and control |
+| **3D Garden** | `/dashboard/threed/garden` | Interactive 3D visualization |
+| **Analytics** | `/dashboard/threed/garden/analytics` | Harvest trends and statistics |
+
+---
+
+## 🔧 ThreeD API Routes
+
+### Core Endpoints
+| Endpoint | Description |
+|----------|-------------|
+| `/api/threed/plants` | Plant CRUD + stats |
+| `/api/threed/beds` | Bed CRUD + stats |
+| `/api/threed/plantings` | Planting CRUD + stats |
+| `/api/threed/tasks` | Task CRUD + stats + complete action |
+| `/api/threed/harvests` | Harvest CRUD + stats |
+| `/api/threed/weather` | Weather logs + stats + poll |
+| `/api/threed/farmbots` | FarmBot CRUD + stats + poll + commands |
+| `/api/threed/analytics` | Garden performance analytics |
+
+### FarmBot Commands
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/threed/farmbots/[id]/water` | POST | Start watering (duration in ms) |
+| `/api/threed/farmbots/[id]/move` | POST | Move to absolute/relative position |
+| `/api/threed/farmbots/commands` | POST | Send custom FarmBot command |
+
+### Polling Services
+| Service | Endpoint | Schedule |
+|---------|----------|----------|
+| Weather | `/api/threed/weather/poll` | On-demand (cron: every 30 min) |
+| FarmBot | `/api/threed/farmbots/poll` | On-demand (cron: every 15 min) |
+| Plants | `/api/threed/plants/poll` | On-demand (seed data import) |
+
+---
+
+## 🎨 3D Visualization Features
+
+### Components
+- `ThreeDGarden` - Main 3D scene with lighting, camera controls, and post-processing
+- `GardenBed` - 3D bed model with hover effects and labels
+- `GardenPlant` - Plant model with growth stage visualization (seed → seedling → vegetative → flowering → fruiting → mature)
+- `GardenGround` - Ground plane with grid reference
+- `WeatherEffects` - Dynamic sun/rain effects based on current weather
+- `FloatingUI` - In-canvas stats overlay
+
+### Controls
+- **Drag to rotate** - Orbit around the garden
+- **Right-click + drag** - Pan the view
+- **Scroll** - Zoom in/out
+- **Auto-rotate** - Toggle from controls panel
+- **Click objects** - Select beds/plants for details
+
+### Growth Stage Visualization
+| Stage | Color | Height |
+|-------|-------|--------|
+| Seed | Brown | 0.1 units |
+| Seedling | Light Green | 0.3 units |
+| Vegetative | Bright Green | 0.6 units |
+| Flowering | Pink | 0.8 units |
+| Fruiting | Orange/Red | 1.0 units |
+| Mature | Dark Green | 1.2 units |
+
+---
+
+## 🤖 FarmBot Integration
+
+### Features
+- **Device Sync** - Pull device info, status, last seen
+- **Sensor Data** - Soil moisture, temperature, light levels
+- **Log Management** - Captures all FarmBot activity
+- **Plant Sync** - Imports plants from FarmBot points
+- **Command Execution** - Water, move, emergency stop, photo capture
+
+### Environment Variables Required
+```bash
+FARMBOT_API_TOKEN=your_personal_access_token
+FARMBOT_API_URL=https://my.farmbot.io/api
+FARMBOT_DEVICE_ID=your_device_id
+OPENWEATHER_API_KEY=your_api_key
+
+
 ---
 
 ## 📁 Updated File Structure (UI Components)
@@ -350,8 +676,80 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 │   │   │       ├── route.ts
 │   │   │       └── verify
 │   │   │           └── route.ts
-│   │   └── master-data
-│   │       └── route.ts
+│   │   ├── master-data
+│   │   │   └── route.ts
+│   │   └── threed
+│   │       ├── analytics
+│   │       │   └── route.ts
+│   │       ├── beds
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── farmbots
+│   │       │   ├── [id]
+│   │       │   │   └── water
+│   │       │   │       ├── move
+│   │       │   │       │   └── route.ts
+│   │       │   │       └── route.ts
+│   │       │   ├── commands
+│   │       │   │   └── route.ts
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   │   └── route.ts
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── harvests
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── logs
+│   │       │   ├── route.ts
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── plantings
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── plants
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       ├── tasks
+│   │       │   ├── cron
+│   │       │   ├── debug
+│   │       │   ├── poll
+│   │       │   ├── route.ts
+│   │       │   ├── seed
+│   │       │   └── stats
+│   │       │       └── route.ts
+│   │       └── weather
+│   │           ├── cron
+│   │           ├── debug
+│   │           ├── poll
+│   │           │   └── route.ts
+│   │           ├── route.ts
+│   │           ├── seed
+│   │           └── stats
+│   │               └── route.ts
 │   ├── dashboard
 │   │   ├── 511org
 │   │   │   ├── 511orgContent.tsx
@@ -371,15 +769,41 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 │   │   ├── chp-live
 │   │   │   ├── chpLiveContent.tsx
 │   │   │   └── page.tsx
+│   │   ├── layout-backup.tsx
 │   │   ├── layout.tsx
-│   │   ├── page-working.tsx
-│   │   └── page.tsx
-│   ├── debug
-│   │   ├── all-polls
-│   │   │   └── route.ts
-│   │   ├── closure-test
-│   │   │   └── page.tsx
-│   │   └── page.tsx
+│   │   ├── page-backup.tsx
+│   │   ├── page.tsx
+│   │   └── threed
+│   │       ├── beds
+│   │       │   ├── bedsContent.tsx
+│   │       │   └── page.tsx
+│   │       ├── farmbots
+│   │       │   ├── farmbotsContent.tsx
+│   │       │   └── page.tsx
+│   │       ├── garden
+│   │       │   ├── analytics
+│   │       │   │   └── page.tsx
+│   │       │   ├── page-working.tsx
+│   │       │   └── page.tsx
+│   │       ├── harvests
+│   │       │   ├── harvestsContent.tsx
+│   │       │   └── page.tsx
+│   │       ├── logs
+│   │       │   ├── logsContent.tsx
+│   │       │   └── page.tsx
+│   │       ├── page.tsx
+│   │       ├── plantings
+│   │       │   ├── page.tsx
+│   │       │   └── plantingsContent.tsx
+│   │       ├── plants
+│   │       │   ├── page.tsx
+│   │       │   └── plantsContent.tsx
+│   │       ├── tasks
+│   │       │   ├── page.tsx
+│   │       │   └── tasksContent.tsx
+│   │       └── weather
+│   │           ├── page.tsx
+│   │           └── weatherContent.tsx
 │   ├── favicon.ico
 │   ├── fonts.js
 │   ├── globals.css
@@ -387,14 +811,9 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 │   ├── page.tsx
 │   ├── sign-in
 │   │   └── page.tsx
-│   ├── sign-up
-│   │   └── page.tsx
-│   └── test
+│   └── sign-up
 │       └── page.tsx
 ├── components
-│   ├── ClosureMap.tsx
-│   ├── DataFreshness.tsx
-│   ├── LoadingSpinner.tsx
 │   ├── dashboard
 │   │   ├── BayArea511.tsx
 │   │   ├── CHPHistorical.tsx
@@ -404,10 +823,17 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 │   │   ├── leafletMap.tsx
 │   │   ├── masterMap.tsx
 │   │   └── simpleMap.tsx
-│   ├── navbar.tsx
 │   ├── themes
 │   │   ├── provider.tsx
 │   │   └── selector.tsx
+│   ├── threed
+│   │   ├── FloatingUI.tsx
+│   │   ├── GardenBed.tsx
+│   │   ├── GardenGround.tsx
+│   │   ├── GardenPlant.tsx
+│   │   ├── GardenViewer.tsx
+│   │   ├── ThreeDGarden.tsx
+│   │   └── WeatherEffects.tsx
 │   └── ui
 │       ├── badge.tsx
 │       ├── button.tsx
@@ -416,6 +842,8 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 │       ├── dropdown-menu.tsx
 │       ├── input.tsx
 │       ├── label.tsx
+│       ├── loading-spinner.tsx
+│       ├── navbar.tsx
 │       ├── scroll-area.tsx
 │       ├── select.tsx
 │       ├── separator.tsx
@@ -426,8 +854,13 @@ The main dashboard now features **color-coded layer toggle cards** that control 
 └── lib
     ├── auth
     │   ├── client.ts
+    │   ├── modules
+    │   │   └── threed
+    │   │       └── schema.ts
     │   ├── schema.ts
     │   └── server.ts
+    ├── data
+    │   └── plants.ts
     ├── db
     │   ├── client.ts
     │   └── seed.ts
@@ -451,6 +884,7 @@ The main dashboard now features **color-coded layer toggle cards** that control 
     │   ├── debug-calfire-raw.ts
     │   ├── diagnose-chp-cad.ts
     │   ├── diagnose-chp-hist-dates.ts
+    │   ├── seed-threed-plants.ts
     │   ├── test-chp-api.ts
     │   ├── test-ckan-direct.ts
     │   └── verify-data.ts
@@ -464,244 +898,21 @@ The main dashboard now features **color-coded layer toggle cards** that control 
     │   ├── CaltransPoller.ts
     │   ├── MasterDataService.ts
     │   ├── TravelTimesPoller.ts
-    │   └── index.ts
+    │   ├── index.ts
+    │   └── threed
+    │       ├── FarmBotPoller.ts
+    │       ├── PlantDataPoller.ts
+    │       └── WeatherPoller.ts
     └── utils
         ├── cityGeocoder.ts
         ├── index.ts
         └── locationCoords.ts
 
-92 directories, 146 files
-
----
-
-## 🔧 Common Commands (Updated)
-
-```bash
-# Development
-bun dev
-
-# Database
-bun run db:generate
-bun run db:migrate
-bun run db:push
-
-# Manual Polling
-curl "http://localhost:3000/api/chp-cad/poll?action=poll"
-curl "http://localhost:3000/api/chp-historical/poll?action=poll&limit=500&startDate=2026-01-01"
-curl "http://localhost:3000/api/bay-area-511/poll?action=poll"
-curl "http://localhost:3000/api/caltrans/poll"
-
-# Check Stats
-curl "http://localhost:3000/api/chp-cad/poll?action=stats"
-curl "http://localhost:3000/api/chp-historical/collisions/stats"
-curl "http://localhost:3000/api/bay-area-511/poll?action=stats"
-curl "http://localhost:3000/api/caltrans/closures/stats"
-
-# Test Cron Jobs Locally
-curl "http://localhost:3000/api/bay-area-511/cron"
-curl "http://localhost:3000/api/caltrans/cron"
-curl "http://localhost:3000/api/chp-cad/cron"
-curl "http://localhost:3000/api/chp-historical/cron"
-
----
-
-# Export dashboard data to CSV+JSON
-# (Click "Export" button on main dashboard)
-
----
-
-✅ Review Summary
-Section	Status	Notes
-Tech Stack	✅ Complete	Bun, Next.js, Neon, Drizzle, shadcn/ui
-Data Sources	✅ Accurate	5 sources with correct methods
-Main Dashboard	✅ Excellent	Layer toggle cards, eye icons, show/hide all
-Service Dashboards	✅ Complete	4 dashboards with expandable rows
-API Routes	✅ Accurate	Cron jobs, polling endpoints, showAll parameter
-Database Schema	✅ Clear	7 key tables listed
-UI Components	✅ Good	shadcn/ui components documented
-Known Issues	✅ Honest	502 errors, CKAN limitation, geocoding
-File Structure	✅ Very thorough	Full tree showing 82 directories, 134 files
-Commands	✅ Useful	Dev, DB, polling, cron tests
-🔍 Minor Observations (Optional Improvements)
-Issue	Suggestion
-Duplicate content	The "UI Design Improvements" section repeats some content from "Main Dashboard" section
-Duplicate commands	"Common Commands" appears twice (once before file tree, once after)
-Old working files	page-new-working-0.tsx and page-new.tsx in dashboard folder — can be archived
-Missing Leaflet dev issue	The known dev-only getPane is undefined error is documented ✅
-📝 Suggested Cleanup (Optional)
-
-## 🎯 Overall Assessment
-
-| Category | Rating |
-|----------|--------|
-| **Completeness** | ⭐⭐⭐⭐⭐ (5/5) |
-| **Accuracy** | ⭐⭐⭐⭐⭐ (5/5) |
-| **Organization** | ⭐⭐⭐⭐⭐ (5/5) |
-| **Usefulness for AI** | ⭐⭐⭐⭐⭐ (5/5) |
-
-Your `CONTEXT.md` is **production-grade documentation**. Any future AI session (or new developer) can pick this up and immediately understand your entire application architecture, data flows, and UI patterns.
-
-**Great work!** 🎉
-
-## [MM] CONTEXT.md
-
----
-
-## ⚙️ Polling Control & Optimization (May 25, 2026)
-
-### Dashboard Data Fetching
-- **Unified endpoint:** `/api/dashboard` combines all 4 data sources
-- **Single API call** per refresh instead of 4 separate calls
-- **Auto-refresh interval:** 60 seconds (user-toggleable)
-- **Caching:** 30-second cache to prevent duplicate requests
-
-### Cron Job Management
-- **Production:** Controlled schedules in `vercel.json`
-- **Development:** Disabled via dummy schedule (`0 0 31 2 *`)
-- **Manual triggers:** Available via `/api/*/poll` endpoints
-
-### Duplicate Prevention
-- **Concurrent fetch blocking:** `isFetching` ref prevents overlapping requests
-- **React Strict Mode:** Handles double-mounting gracefully
-- **Unique keys:** Fallback IDs when primary ID is undefined
-
----
-
-## 🔄 CHP Historical Poller - Backfill + Incremental
-
-### Architecture
-- **One-time backfill script** (`scripts/backfill-chp-historical.ts`) imports all historical data
-- **Simple incremental poller** only fetches records since the latest date in database
-- **Local counties only:** Humboldt (12) and Mendocino (23)
-
-### Usage
-```bash
-# Backfill (run once)
-bun run src/lib/scripts/backfill-chp-historical.ts
-
-# Incremental polling
-curl "http://localhost:3000/api/chp-historical/poll?action=poll"
-
-## 🚀 Next Steps
-
-Your CHP Historical Poller is now:
-- ✅ Backfilled with all historical data
-- ✅ Configured for incremental updates
-- ✅ Ready for production cron jobs (once per day is sufficient)
-
-The 775 local records from 2026 are now available for your dashboard and maps!
-
----
-
----
-
-## 🗺️ CHP Historical Dashboard - Pagination & Map Synchronization (May 26, 2026)
-
-### Feature Overview
-The CHP Historical dashboard now features **dual pagination controls** (top and bottom of table) with **map synchronization** — the map only shows markers for the currently visible page of records.
-
-### Key UX Improvements
-
-| Feature | Implementation |
-|---------|----------------|
-| **Dual Pagination** | Previous/Next buttons at both top and bottom of the table |
-| **Map Stays Visible** | Page changes do NOT auto-scroll — map remains in view |
-| **Map Synchronization** | Map markers update to show only current page collisions |
-| **Performance** | Map renders ≤50 markers per page instead of all 775 |
-| **Reusable Component** | `PaginationControls` used at both top and bottom |
-
-### User Benefits
-- **No scrolling** — Users can change pages without scrolling past the map
-- **Visual correlation** — Table rows match exactly what is on the map
-- **Fast navigation** — Map updates instantly on page change
-- **Better performance** — Map loads faster with fewer markers
-
-### Technical Implementation
-
-```tsx
-// Pagination state
-const [currentPage, setCurrentPage] = useState(0);
-const pageSize = 50;
-const totalPages = Math.ceil(totalRecords / pageSize);
-
-// Map shows only current page markers
-const currentPageData = getCurrentPageData();
-const mapEvents = currentPageWithCoords.map(c => ({...}));
-
-// No auto-scroll on page change
-const handlePageChange = (newPage: number) => {
-  setCurrentPage(newPage);
-  // Map stays visible - no automatic scrolling
-};
-
----
-
-## 🔥 CalFire Incident Monitor
-
-### Overview
-The CalFire service monitors wildfire incidents across California using the official CAL FIRE incident API.
-
-### Features
-- **Real-time wildfire tracking** - Active and inactive incidents
-- **Statewide coverage** - All California counties
-- **Detailed incident data** - Acreage, containment, location, admin unit
-- **Historical records** - Complete incident history
-- **Map integration** - Visualize fire locations
-- **Filter by county and status** - Active, contained, extinguished
-
-### Polling Options
-| Endpoint | Action | Description |
-|----------|--------|-------------|
-| `/api/calfire/poll?action=poll` | Active only | Fast poll for cron jobs (active incidents only) |
-| `/api/calfire/poll?action=poll-norcal` | NorCal | All incidents (active+inactive) in Northern CA |
-| `/api/calfire/poll?action=poll-all` | Full | **All incidents statewide (no filter)** |
-
-### API Routes
-| Endpoint | Purpose |
-|----------|---------|
-| `/api/calfire` | Main data endpoint (supports `?showAll=true`) |
-| `/api/calfire/poll` | Manual polling with actions |
-| `/api/calfire/cron` | Cron job endpoint (every 30 min) |
-
-### Database Schema
-```typescript
-calfire_incidents {
-  id, uniqueId, name, type, status, county, location,
-  latitude, longitude, acresBurned, percentContained,
-  startedAt, updatedAt, extinguishedAt, adminUnit,
-  url, isActive, isCalFireIncident, rawData
-}
-
----
-
-### CalFire Incidents Schema (`calfire_incidents`)
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | serial | Primary key |
-| `unique_id` | varchar(100) | Unique identifier from CalFire API |
-| `name` | varchar(200) | Fire name |
-| `type` | varchar(50) | Incident type (e.g., Wildfire) |
-| `status` | varchar(20) | Status (active, inactive, extinguished) |
-| `county` | varchar(100) | County where fire is located |
-| `location` | text | Detailed location description |
-| `latitude` | decimal(10,7) | Latitude coordinate |
-| `longitude` | decimal(10,7) | Longitude coordinate |
-| `acres_burned` | decimal(12,1) | Total acres burned |
-| `percent_contained` | decimal(5,1) | Containment percentage |
-| `started_at` | timestamp | When the fire started |
-| `updated_at` | timestamp | Last update from API |
-| `extinguished_at` | timestamp | When fire was extinguished |
-| `admin_unit` | varchar(200) | Responsible agency (e.g., CAL FIRE) |
-| `url` | text | Link to CalFire incident page |
-| `is_active` | boolean | Whether fire is currently active |
-| `is_calfire_incident` | boolean | Whether incident is CAL FIRE managed |
-| `raw_data` | jsonb | Complete original API response |
-| `fetched_at` | timestamp | When record was fetched |
-| `last_seen` | timestamp | Last time incident appeared in API |
+154 directories, 196 files
 
 ---
 
 ## [MM] CONTEXT.md
+**Last Updated: May 28, 2026 @ 12:12pm PST**
 
 ---

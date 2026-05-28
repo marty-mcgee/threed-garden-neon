@@ -6,14 +6,14 @@ export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  console.log(`Starting FarmBot poll...`);
+  console.log(`\n🔌 Starting FarmBot API sync...`);
   
   const poller = new FarmBotPoller();
-  const result = await poller.pollAll();
+  const result = await poller.syncFarmBot();
   
   return NextResponse.json({
     success: result.success,
-    message: result.success ? 'FarmBot poll completed' : 'Poll failed',
+    message: result.success ? 'FarmBot sync completed' : 'Sync failed',
     stats: result.stats,
     timestamp: new Date().toISOString()
   });

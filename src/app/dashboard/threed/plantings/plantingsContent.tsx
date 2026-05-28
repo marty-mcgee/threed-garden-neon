@@ -395,7 +395,7 @@ export default function PlantingsContent() {
                           )}
                         </div>
                       </td>
-                    </table>
+                    </tr>
                   )}
                 </React.Fragment>
               ))}

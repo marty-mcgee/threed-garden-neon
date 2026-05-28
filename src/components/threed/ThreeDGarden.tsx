@@ -15,11 +15,11 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 // Import our custom components
-import { GardenBed } from './GardenBed';
-import { GardenPlant } from './GardenPlant';
-import { GardenGround } from './GardenGround';
-import { WeatherEffects } from './WeatherEffects';
-import { FloatingUI } from './FloatingUI';
+import { GardenBed } from '@/components/threed/GardenBed';
+import { GardenPlant } from '@/components/threed/GardenPlant';
+import { GardenGround } from '@/components/threed/GardenGround';
+import { WeatherEffects } from '@/components/threed/WeatherEffects';
+import { FloatingUI } from '@/components/threed/FloatingUI';
 
 interface Bed {
   id: number;

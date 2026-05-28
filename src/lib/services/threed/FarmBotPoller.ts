@@ -3,192 +3,267 @@ import { db } from '@/lib/db/client';
 import { threedFarmbots, threedFarmbotLogs } from '@/lib/auth/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
+export interface FarmBotDevice {
+  id: number;
+  name: string;
+  timezone: string;
+  last_seen: string;
+  mqtt: string;
+  throttled_until: string;
+  timezone_offset: string;
+}
+
+export interface FarmBotSensor {
+  id: number;
+  pin: number;
+  label: string;
+  mode: number;
+  value: number;
+  unit: string;
+}
+
+export interface FarmBotLog {
+  id: number;
+  type: string;
+  message: string;
+  created_at: string;
+  meta: {
+    type: string;
+    major_version: number;
+    minor_version: number;
+    patch_version: number;
+  };
+}
+
 export class FarmBotPoller {
   private pollingActive = false;
   private lastPollTime: Date | null = null;
   private lastPollStats: any = null;
   private apiToken: string;
   private apiUrl: string;
+  private deviceId: string;
   
   constructor() {
     this.apiToken = process.env.FARMBOT_API_TOKEN || '';
     this.apiUrl = process.env.FARMBOT_API_URL || 'https://my.farmbot.io/api';
+    this.deviceId = process.env.FARMBOT_DEVICE_ID || '';
+    
     if (!this.apiToken) {
-      console.warn('FARMBOT_API_TOKEN not set in environment variables');
+      console.warn('⚠️ FARMBOT_API_TOKEN not set in environment variables');
+    }
+    if (!this.deviceId) {
+      console.warn('⚠️ FARMBOT_DEVICE_ID not set in environment variables');
     }
   }
   
-  // Fetch device info from FarmBot API
-  private async fetchDeviceInfo(deviceId: string): Promise<any> {
-    if (!this.apiToken) return null;
+  // Make authenticated request to FarmBot API
+  private async farmbotFetch(endpoint: string, options: RequestInit = {}): Promise<any> {
+    if (!this.apiToken) {
+      throw new Error('FarmBot API token not configured');
+    }
     
+    const url = `${this.apiUrl}${endpoint}`;
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `Bearer ${this.apiToken}`,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`FarmBot API error: ${response.status} ${response.statusText}`);
+    }
+    
+    return response.json();
+  }
+  
+  // Get device info
+  async getDeviceInfo(): Promise<FarmBotDevice | null> {
     try {
-      const response = await fetch(`${this.apiUrl}/devices/${deviceId}`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      return await response.json();
+      console.log(`  📡 Fetching device info...`);
+      const data = await this.farmbotFetch(`/devices/${this.deviceId}`);
+      return {
+        id: data.id,
+        name: data.name,
+        timezone: data.timezone,
+        last_seen: data.last_seen,
+        mqtt: data.mqtt,
+        throttled_until: data.throttled_until,
+        timezone_offset: data.timezone_offset,
+      };
     } catch (error) {
-      console.error(`Error fetching device ${deviceId}:`, error);
+      console.error(`  ❌ Error fetching device info:`, error);
       return null;
     }
   }
   
-  // Fetch sensor data from FarmBot API
-  private async fetchSensorData(deviceId: string): Promise<any> {
-    if (!this.apiToken) return null;
-    
+  // Get sensor data
+  async getSensorData(): Promise<FarmBotSensor[]> {
     try {
-      const response = await fetch(`${this.apiUrl}/devices/${deviceId}/sensors`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      return await response.json();
+      console.log(`  📡 Fetching sensor data...`);
+      const data = await this.farmbotFetch(`/devices/${this.deviceId}/sensors`);
+      return data.map((sensor: any) => ({
+        id: sensor.id,
+        pin: sensor.pin,
+        label: sensor.label,
+        mode: sensor.mode,
+        value: sensor.value,
+        unit: sensor.unit || '',
+      }));
     } catch (error) {
-      console.error(`Error fetching sensor data for ${deviceId}:`, error);
-      return null;
-    }
-  }
-  
-  // Fetch recent logs from FarmBot API
-  private async fetchDeviceLogs(deviceId: string, limit: number = 50): Promise<any[]> {
-    if (!this.apiToken) return [];
-    
-    try {
-      const response = await fetch(`${this.apiUrl}/devices/${deviceId}/logs?limit=${limit}`, {
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      const data = await response.json();
-      return data.logs || [];
-    } catch (error) {
-      console.error(`Error fetching logs for ${deviceId}:`, error);
+      console.error(`  ❌ Error fetching sensor data:`, error);
       return [];
     }
   }
   
-  // Update farmbot status based on API response
-  async updateFarmbotStatus(farmbotId: number, deviceId: string): Promise<void> {
-    const deviceInfo = await this.fetchDeviceInfo(deviceId);
-    if (!deviceInfo) return;
+  // Get point data (plants, weeds, etc.)
+  async getPoints(): Promise<any[]> {
+    try {
+      console.log(`  📡 Fetching points data...`);
+      const data = await this.farmbotFetch(`/devices/${this.deviceId}/points`);
+      return data;
+    } catch (error) {
+      console.error(`  ❌ Error fetching points:`, error);
+      return [];
+    }
+  }
+  
+  // Get recent logs
+  async getLogs(limit: number = 50): Promise<FarmBotLog[]> {
+    try {
+      console.log(`  📡 Fetching recent logs...`);
+      const data = await this.farmbotFetch(`/devices/${this.deviceId}/logs?limit=${limit}`);
+      return data.map((log: any) => ({
+        id: log.id,
+        type: log.type,
+        message: log.message,
+        created_at: log.created_at,
+        meta: log.meta,
+      }));
+    } catch (error) {
+      console.error(`  ❌ Error fetching logs:`, error);
+      return [];
+    }
+  }
+  
+  // Get plant data from FarmBot points
+  async getPlants(): Promise<any[]> {
+    const points = await this.getPoints();
+    return points.filter((point: any) => point.pointer_type === 'Plant');
+  }
+  
+  // Save FarmBot device to database
+  async saveDeviceToDatabase(deviceInfo: FarmBotDevice): Promise<void> {
+    const existing = await db
+      .select()
+      .from(threedFarmbots)
+      .where(eq(threedFarmbots.deviceId, this.deviceId))
+      .limit(1);
     
-    const sensorData = await this.fetchSensorData(deviceId);
-    const recentLogs = await this.fetchDeviceLogs(deviceId, 10);
+    const now = new Date();
+    const lastSeen = deviceInfo.last_seen ? new Date(deviceInfo.last_seen) : now;
     
-    // Determine status based on last_seen
-    const lastSeen = deviceInfo.last_seen ? new Date(deviceInfo.last_seen) : new Date();
+    if (existing.length > 0) {
+      // Update existing
+      await db
+        .update(threedFarmbots)
+        .set({
+          name: deviceInfo.name,
+          status: this.determineStatus(lastSeen),
+          lastSeen: lastSeen,
+          updatedAt: now,
+        })
+        .where(eq(threedFarmbots.deviceId, this.deviceId));
+      console.log(`  ✅ Updated FarmBot device: ${deviceInfo.name}`);
+    } else {
+      // Insert new
+      await db.insert(threedFarmbots).values({
+        deviceId: this.deviceId,
+        name: deviceInfo.name,
+        status: this.determineStatus(lastSeen),
+        lastSeen: lastSeen,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      console.log(`  ✅ Added new FarmBot device: ${deviceInfo.name}`);
+    }
+  }
+  
+  // Determine status based on last seen time
+  private determineStatus(lastSeen: Date): string {
     const now = new Date();
     const minutesSinceLastSeen = (now.getTime() - lastSeen.getTime()) / (1000 * 60);
     
-    let status = 'offline';
-    if (minutesSinceLastSeen < 5) {
-      status = 'online';
-    } else if (minutesSinceLastSeen < 15) {
-      status = 'maintenance';
-    }
-    
-    // Update farmbot record
-    await db
-      .update(threedFarmbots)
-      .set({
-        status,
-        lastSeen: lastSeen,
-        batteryLevel: deviceInfo.battery_level || null,
-        firmwareVersion: deviceInfo.firmware_version || null,
-        updatedAt: new Date(),
-      })
-      .where(eq(threedFarmbots.id, farmbotId));
-    
-    // Save sensor data as logs
-    if (sensorData && sensorData.length > 0) {
-      for (const sensor of sensorData) {
+    if (minutesSinceLastSeen < 5) return 'online';
+    if (minutesSinceLastSeen < 15) return 'maintenance';
+    return 'offline';
+  }
+  
+  // Save sensor readings to logs
+  async saveSensorReadings(sensors: FarmBotSensor[]): Promise<void> {
+    for (const sensor of sensors) {
+      // Check if we have a recent reading (within last hour)
+      const recent = await db
+        .select()
+        .from(threedFarmbotLogs)
+        .where(sql`${threedFarmbotLogs.farmbotId} = ${this.deviceId} 
+          AND ${threedFarmbotLogs.eventType} = 'sensor' 
+          AND ${threedFarmbotLogs.message} LIKE ${`%${sensor.label}%`}
+          AND ${threedFarmbotLogs.loggedAt} > NOW() - INTERVAL '1 hour'`)
+        .limit(1);
+      
+      if (recent.length === 0) {
         await db.insert(threedFarmbotLogs).values({
-          farmbotId,
+          farmbotId: parseInt(this.deviceId),
           eventType: 'sensor',
           status: 'success',
-          message: `${sensor.label || 'Sensor'}: ${sensor.value} ${sensor.unit || ''}`,
+          message: `${sensor.label}: ${sensor.value} ${sensor.unit}`,
           sensorData: sensor,
-          loggedAt: new Date(sensor.created_at || Date.now()),
+          loggedAt: new Date(),
           createdAt: new Date(),
         });
       }
     }
+    console.log(`  📊 Saved ${sensors.length} sensor readings`);
+  }
+  
+  // Save logs to database
+  async saveLogs(logs: FarmBotLog[]): Promise<void> {
+    let newCount = 0;
     
-    // Save recent logs
-    for (const log of recentLogs) {
+    for (const log of logs) {
+      // Check if we already have this log
       const existing = await db
         .select()
         .from(threedFarmbotLogs)
-        .where(sql`${threedFarmbotLogs.message} = ${log.message} AND ${threedFarmbotLogs.loggedAt} > NOW() - INTERVAL '1 hour'`)
+        .where(sql`${threedFarmbotLogs.message} = ${log.message} 
+          AND ${threedFarmbotLogs.loggedAt} > NOW() - INTERVAL '1 hour'`)
         .limit(1);
       
       if (existing.length === 0) {
         await db.insert(threedFarmbotLogs).values({
-          farmbotId,
+          farmbotId: parseInt(this.deviceId),
           eventType: log.type || 'info',
-          status: log.meta?.type || 'info',
+          status: log.type === 'error' ? 'error' : 'success',
           message: log.message,
           sensorData: log,
           loggedAt: new Date(log.created_at),
           createdAt: new Date(),
         });
+        newCount++;
       }
     }
     
-    console.log(`  ✅ Updated FarmBot ${deviceId}: status=${status}, battery=${deviceInfo.battery_level}%`);
-  }
-  
-  // Send command to FarmBot (e.g., water, move, plant)
-  async sendCommand(deviceId: string, command: string, args: any = {}): Promise<any> {
-    if (!this.apiToken) {
-      console.error('No API token configured');
-      return null;
-    }
-    
-    try {
-      const response = await fetch(`${this.apiUrl}/devices/${deviceId}/commands`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ command, args }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error(`Error sending command to ${deviceId}:`, error);
-      return null;
+    if (newCount > 0) {
+      console.log(`  📝 Saved ${newCount} new logs`);
     }
   }
   
-  // Poll all active farmbots
-  async pollAll(): Promise<{ success: boolean; stats?: any; error?: string }> {
+  // Sync all FarmBot data
+  async syncFarmBot(): Promise<{ success: boolean; stats?: any; error?: string }> {
     if (this.pollingActive) {
       return { success: false, error: 'Polling already in progress' };
     }
@@ -197,27 +272,42 @@ export class FarmBotPoller {
     const startTime = Date.now();
     
     try {
-      console.log(`\n🤖 Starting FarmBot API poll at ${new Date().toISOString()}`);
+      console.log(`\n🤖 Starting FarmBot sync at ${new Date().toISOString()}`);
       
-      const farmbots = await db
-        .select()
-        .from(threedFarmbots)
-        .where(sql`${threedFarmbots.isActive} = true`);
+      // Fetch all data in parallel
+      const [deviceInfo, sensors, logs, plants] = await Promise.all([
+        this.getDeviceInfo(),
+        this.getSensorData(),
+        this.getLogs(100),
+        this.getPlants(),
+      ]);
       
-      console.log(`  Syncing ${farmbots.length} active farmbots...`);
-      
-      for (const farmbot of farmbots) {
-        await this.updateFarmbotStatus(farmbot.id, farmbot.deviceId);
+      if (!deviceInfo) {
+        throw new Error('Failed to fetch device info');
       }
+      
+      // Save to database
+      await this.saveDeviceToDatabase(deviceInfo);
+      await this.saveSensorReadings(sensors);
+      await this.saveLogs(logs);
+      
+      // Process plants from FarmBot (optional: sync with your plantings table)
+      console.log(`  🌱 Found ${plants.length} plants in FarmBot`);
       
       const duration = Date.now() - startTime;
       this.lastPollTime = new Date();
       this.lastPollStats = { 
-        farmbotsSynced: farmbots.length,
+        deviceName: deviceInfo.name,
+        status: this.determineStatus(new Date(deviceInfo.last_seen)),
+        sensorsCount: sensors.length,
+        logsCount: logs.length,
+        plantsCount: plants.length,
         duration,
       };
       
-      console.log(`✅ FarmBot API poll complete: ${farmbots.length} devices synced in ${duration}ms`);
+      console.log(`✅ FarmBot sync complete:`);
+      console.log(`  Device: ${deviceInfo.name} (${this.lastPollStats.status})`);
+      console.log(`  Sensors: ${sensors.length}, Logs: ${logs.length}, Plants: ${plants.length}`);
       
       return {
         success: true,
@@ -226,51 +316,93 @@ export class FarmBotPoller {
       };
       
     } catch (error) {
-      console.error('FarmBot polling error:', error);
+      console.error('❌ FarmBot sync error:', error);
       return { success: false, error: String(error) };
     } finally {
       this.pollingActive = false;
     }
   }
   
-  // Send a watering command to a specific farmbot
-  async sendWaterCommand(deviceId: string, durationMs: number = 60000): Promise<any> {
-    console.log(`💧 Sending water command to ${deviceId} for ${durationMs}ms...`);
-    return this.sendCommand(deviceId, 'water', { duration_ms: durationMs });
+  // Send a command to FarmBot
+  async sendCommand(command: string, args: any = {}): Promise<any> {
+    if (!this.apiToken) {
+      throw new Error('FarmBot API token not configured');
+    }
+    
+    try {
+      console.log(`  📡 Sending command: ${command}`);
+      const result = await this.farmbotFetch(`/devices/${this.deviceId}/commands`, {
+        method: 'POST',
+        body: JSON.stringify({ command, args }),
+      });
+      console.log(`  ✅ Command sent successfully`);
+      return result;
+    } catch (error) {
+      console.error(`  ❌ Command failed:`, error);
+      throw error;
+    }
   }
   
-  // Send a move command
-  async sendMoveCommand(deviceId: string, x: number, y: number, z: number): Promise<any> {
-    console.log(`📍 Sending move command to ${deviceId}: (${x}, ${y}, ${z})`);
-    return this.sendCommand(deviceId, 'move_absolute', { location: { x, y, z } });
+  // Water command
+  async water(durationMs: number = 60000): Promise<any> {
+    return this.sendCommand('water', { duration_ms: durationMs });
+  }
+  
+  // Move to absolute position
+  async moveAbsolute(x: number, y: number, z: number): Promise<any> {
+    return this.sendCommand('move_absolute', { location: { x, y, z } });
+  }
+  
+  // Move relative
+  async moveRelative(x: number, y: number, z: number): Promise<any> {
+    return this.sendCommand('move_relative', { x, y, z });
+  }
+  
+  // Take a photo
+  async takePhoto(): Promise<any> {
+    return this.sendCommand('photo', {});
+  }
+  
+  // Emergency stop
+  async emergencyStop(): Promise<any> {
+    return this.sendCommand('emergency_stop', {});
+  }
+  
+  // Get current position
+  async getCurrentPosition(): Promise<any> {
+    return this.sendCommand('get_current_position', {});
+  }
+  
+  // Toggle pin (e.g., turn on/off a peripheral)
+  async togglePin(pin: number, value: number): Promise<any> {
+    return this.sendCommand('toggle_pin', { pin_number: pin, value });
   }
   
   async getStats() {
-    const total = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(threedFarmbots);
-    
-    const online = await db
-      .select({ count: sql<number>`COUNT(*)` })
+    const farmbot = await db
+      .select()
       .from(threedFarmbots)
-      .where(sql`${threedFarmbots.status} = 'online'`);
-    
-    const activeLogsToday = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(threedFarmbotLogs)
-      .where(sql`${threedFarmbotLogs.loggedAt} > NOW() - INTERVAL '24 hours'`);
+      .where(eq(threedFarmbots.deviceId, this.deviceId))
+      .limit(1);
     
     const recentLogs = await db
       .select()
       .from(threedFarmbotLogs)
+      .where(sql`${threedFarmbotLogs.farmbotId} = ${this.deviceId}`)
       .orderBy(desc(threedFarmbotLogs.loggedAt))
       .limit(10);
     
+    const sensorReadings = await db
+      .select()
+      .from(threedFarmbotLogs)
+      .where(sql`${threedFarmbotLogs.farmbotId} = ${this.deviceId} AND ${threedFarmbotLogs.eventType} = 'sensor'`)
+      .orderBy(desc(threedFarmbotLogs.loggedAt))
+      .limit(20);
+    
     return {
-      total: total[0]?.count || 0,
-      online: online[0]?.count || 0,
-      activeLogsLast24h: activeLogsToday[0]?.count || 0,
+      device: farmbot[0] || null,
       recentLogs,
+      sensorReadings,
       lastPoll: this.lastPollTime,
       lastPollStats: this.lastPollStats
     };
