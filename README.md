@@ -1,47 +1,3 @@
-src/
-├── app/                      # Next.js App Router (routes only)
-│   ├── api/
-│   │   ├── closures/         # Lane closure API routes
-│   │   ├── collisions/       # CHP collision API routes
-│   │   ├── historical/
-│   │   │   └── chp/          # CHP poll endpoint
-│   │   └── poll/             # Lane closure poll endpoint
-│   ├── closure/[id]/         # Closure detail page
-│   ├── dashboard/            # Dashboard page
-│   └── layout.tsx
-│
-├── lib/                      # Application libraries and services
-│   ├── db.ts                 # Database connection (already exists)
-│   ├── schema.ts             # Drizzle schema (already exists)
-│   │
-│   ├── services/             # Business logic services
-│   │   ├── index.ts          # Export all services
-│   │   ├── CaltransPoller.ts # Lane closure polling service
-│   │   ├── CHPPoller.ts      # CHP collision polling service
-│   │   └── QueryService.ts   # Shared query utilities
-│   │
-│   ├── utils/                # Helper functions
-│   │   ├── formatters.ts     # Date, number, coordinate formatters
-│   │   └── validators.ts     # Input validation
-│   │
-│   └── types/                # Shared TypeScript types
-│       ├── closures.ts
-│       └── collisions.ts
-│
-├── components/               # React components
-│   ├── ClosureMap.tsx
-│   ├── LoadingSpinner.tsx
-│   └── ...
-│
-├── hooks/                    # Custom React hooks (if needed)
-│   └── useClosures.ts
-│
-└── styles/                   # Global styles
-    └── globals.css
-
-
-
-
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://neon.com/brand/neon-logo-dark-color.svg?new">
   <source media="(prefers-color-scheme: light)" srcset="https://neon.com/brand/neon-logo-light-color.svg?new">
@@ -242,23 +198,8 @@ To learn more about Next.js, take a look at the following resources:
 
 Commit and push your code changes to your GitHub repository to automatically trigger a new deployment.
 
+---
 
 ## [MM] Notes
 
-# 1. Summary (working)
-curl "http://localhost:3000/api/caltrans/closures/summary"
-
-# 2. Closures with pagination
-curl "http://localhost:3000/api/caltrans/closures?district=7&limit=10&offset=0"
-
-# 3. Dashboard stats
-curl "http://localhost:3000/api/dashboard/stats"
-
-# 4. Search
-curl "http://localhost:3000/api/caltrans/closures/search?q=101"
-
-# 5. Export as JSON
-curl "http://localhost:3000/api/caltrans/closures/export?format=json&status=active"
-
-# 6. Export as CSV
-curl "http://localhost:3000/api/caltrans/closures/export?format=csv&status=active"
+---
