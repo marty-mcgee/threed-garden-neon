@@ -1,6 +1,6 @@
-# Project Context – mcnews-nextjs-neon
+# Project Context – threed-garden-neon
 
-**Last Updated: May 26, 2026 @ 07:30am PST**
+**Last Updated: May 28, 2026 @ 12:16am PST**
 
 ---
 
@@ -8,7 +8,7 @@
 
 - **Framework:** Next.js (App Router), TypeScript, React
 - **Database:** Neon Postgres + Drizzle ORM
-- **UI:** shadcn/ui, Tailwind, Leaflet (OpenStreetMaps)
+- **UI:** shadcn/ui, Tailwind, Three.JS, React Three Fiber, Leaflet (OpenStreetMaps)
 - **Deployment:** Vercel
 - **Package Manager:** Bun
 
