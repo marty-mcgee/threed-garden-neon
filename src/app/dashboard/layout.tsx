@@ -17,9 +17,9 @@ export const dynamic = 'force-dynamic';
 
 const tabs = [
   { path: '/dashboard', name: 'Overview', icon: <MapPin className="w-4 h-4 text-blue-500" />, color: 'blue' },
-  { path: '/dashboard/chp-live', name: 'CHP Live', icon: <AlertTriangle className="w-4 h-4 text-red-500" />, color: 'red' },
-  { path: '/dashboard/511org', name: 'Bay Area 511', icon: <Radio className="w-4 h-4 text-emerald-500" />, color: 'emerald' },
-  { path: '/dashboard/caltrans', name: 'Caltrans', icon: <Car className="w-4 h-4 text-blue-500" />, color: 'blue' },
+  // { path: '/dashboard/chp-live', name: 'CHP Live', icon: <AlertTriangle className="w-4 h-4 text-red-500" />, color: 'red' },
+  // { path: '/dashboard/511org', name: 'Bay Area 511', icon: <Radio className="w-4 h-4 text-emerald-500" />, color: 'emerald' },
+  // { path: '/dashboard/caltrans', name: 'Caltrans', icon: <Car className="w-4 h-4 text-blue-500" />, color: 'blue' },
   { path: '/dashboard/calfire', name: 'CalFire', icon: <Flame className="w-4 h-4 text-orange-500" />, color: 'orange' },
   { path: '/dashboard/chp-historical', name: 'CHP Historical', icon: <BarChart3 className="w-4 h-4 text-purple-500" />, color: 'purple' },
 ];
@@ -61,10 +61,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">
-                  NorCal Traffic & Incident Monitor
+                  ThreeD Garden Monitor
                 </h1>
                 <p className="text-xs text-muted-foreground">
-                  Real-time data from Caltrans, 511.org, CHP, and CalFire
+                  Real-time data from FarmBot, ThreeD Garden, Weather
                 </p>
               </div>
             </div>

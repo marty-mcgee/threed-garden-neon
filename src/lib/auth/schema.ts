@@ -397,3 +397,201 @@ export const calfireIncidents = pgTable('calfire_incidents', {
 // ============================================
 // ## [MM] Schema Updated 2026-05-27 07:12am
 // ============================================
+
+
+// ============================================
+// 1. Plants Master Table
+// ============================================
+export const plants = pgTable('plants', {
+  id: serial('id').primaryKey(),
+  plantId: varchar('plant_id', { length: 50 }).unique().notNull(),
+  commonName: varchar('common_name', { length: 200 }).notNull(),
+  scientificName: varchar('scientific_name', { length: 200 }),
+  variety: varchar('variety', { length: 100 }),
+  family: varchar('family', { length: 100 }),
+  type: varchar('type', { length: 50 }), // Vegetable, Fruit, Herb, Flower, Tree
+  growthHabit: varchar('growth_habit', { length: 50 }), // Bush, Vine, Tree, Ground Cover
+  sunlight: varchar('sunlight', { length: 50 }), // Full Sun, Partial Shade, Full Shade
+  waterNeeds: varchar('water_needs', { length: 50 }), // Low, Medium, High
+  soilType: text('soil_type'),
+  soilPH: decimal('soil_ph', { precision: 3, scale: 1 }),
+  daysToMaturity: integer('days_to_maturity'),
+  daysToGermination: integer('days_to_germination'),
+  spacingInches: integer('spacing_inches'),
+  rowSpacingInches: integer('row_spacing_inches'),
+  plantingDepthInches: decimal('planting_depth_inches', { precision: 3, scale: 1 }),
+  frostTolerant: boolean('frost_tolerant').default(false),
+  perennial: boolean('perennial').default(false),
+  hardinessZone: varchar('hardiness_zone', { length: 10 }),
+  imageUrl: text('image_url'),
+  description: text('description'),
+  careInstructions: text('care_instructions'),
+  harvestInstructions: text('harvest_instructions'),
+  companionPlants: text('companion_plants'), // Comma-separated list or JSON
+  avoidPlants: text('avoid_plants'), // Comma-separated list or JSON
+  rawData: jsonb('raw_data'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  plantIdIdx: uniqueIndex('idx_plants_plant_id').on(table.plantId),
+  commonNameIdx: index('idx_plants_common_name').on(table.commonName),
+  typeIdx: index('idx_plants_type').on(table.type),
+}));
+
+// ============================================
+// 2. Beds Table (Garden Layout)
+// ============================================
+export const beds = pgTable('beds', {
+  id: serial('id').primaryKey(),
+  bedId: varchar('bed_id', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  description: text('description'),
+  widthFeet: decimal('width_feet', { precision: 5, scale: 2 }),
+  lengthFeet: decimal('length_feet', { precision: 5, scale: 2 }),
+  squareFeet: decimal('square_feet', { precision: 8, scale: 2 }),
+  shape: varchar('shape', { length: 50 }).default('rectangle'), // rectangle, square, circle, custom
+  soilType: varchar('soil_type', { length: 50 }),
+  sunExposure: varchar('sun_exposure', { length: 50 }),
+  coordinates: jsonb('coordinates'), // GeoJSON or custom format for 3D positioning
+  positionX: decimal('position_x', { precision: 8, scale: 2 }),
+  positionY: decimal('position_y', { precision: 8, scale: 2 }),
+  positionZ: decimal('position_z', { precision: 8, scale: 2 }),
+  rotation: decimal('rotation', { precision: 8, scale: 2 }),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  bedIdIdx: uniqueIndex('idx_beds_bed_id').on(table.bedId),
+  activeIdx: index('idx_beds_active').on(table.isActive),
+}));
+
+// ============================================
+// 3. Plantings (Plants in specific beds)
+// ============================================
+export const plantings = pgTable('plantings', {
+  id: serial('id').primaryKey(),
+  plantingId: varchar('planting_id', { length: 50 }).unique().notNull(),
+  plantId: integer('plant_id').references(() => plants.id),
+  bedId: integer('bed_id').references(() => beds.id),
+  quantity: integer('quantity').default(1),
+  spacingInches: integer('spacing_inches'),
+  positionX: decimal('position_x', { precision: 8, scale: 2 }),
+  positionY: decimal('position_y', { precision: 8, scale: 2 }),
+  positionZ: decimal('position_z', { precision: 8, scale: 2 }),
+  plantedDate: timestamp('planted_date'),
+  expectedHarvestDate: timestamp('expected_harvest_date'),
+  actualHarvestDate: timestamp('actual_harvest_date'),
+  status: varchar('status', { length: 20 }).default('planting'), // planting, growing, harvesting, harvested, failed
+  growthStage: varchar('growth_stage', { length: 50 }), // seed, seedling, vegetative, flowering, fruiting, mature
+  health: varchar('health', { length: 20 }).default('good'), // excellent, good, fair, poor, dead
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  plantingIdIdx: uniqueIndex('idx_plantings_planting_id').on(table.plantingId),
+  plantIdx: index('idx_plantings_plant').on(table.plantId),
+  bedIdx: index('idx_plantings_bed').on(table.bedId),
+  statusIdx: index('idx_plantings_status').on(table.status),
+}));
+
+// ============================================
+// 4. Harvests Log
+// ============================================
+export const harvests = pgTable('harvests', {
+  id: serial('id').primaryKey(),
+  harvestId: varchar('harvest_id', { length: 50 }).unique().notNull(),
+  plantingId: integer('planting_id').references(() => plantings.id),
+  plantId: integer('plant_id').references(() => plants.id),
+  quantity: decimal('quantity', { precision: 8, scale: 2 }),
+  unit: varchar('unit', { length: 20 }).default('lbs'), // lbs, oz, each, bunch, etc.
+  weightLbs: decimal('weight_lbs', { precision: 8, scale: 2 }),
+  harvestDate: timestamp('harvest_date').defaultNow(),
+  notes: text('notes'),
+  imageUrl: text('image_url'),
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  harvestIdIdx: uniqueIndex('idx_harvests_harvest_id').on(table.harvestId),
+  plantingIdx: index('idx_harvests_planting').on(table.plantingId),
+  harvestDateIdx: index('idx_harvests_date').on(table.harvestDate),
+}));
+
+// ============================================
+// 5. Garden Tasks / To-Do List
+// ============================================
+export const tasks = pgTable('tasks', {
+  id: serial('id').primaryKey(),
+  taskId: varchar('task_id', { length: 50 }).unique().notNull(),
+  plantingId: integer('planting_id').references(() => plantings.id),
+  title: varchar('title', { length: 200 }).notNull(),
+  description: text('description'),
+  type: varchar('type', { length: 50 }), // water, fertilize, prune, harvest, weed, pest_control
+  priority: varchar('priority', { length: 20 }).default('medium'), // low, medium, high, urgent
+  status: varchar('status', { length: 20 }).default('pending'), // pending, in_progress, completed, cancelled
+  dueDate: timestamp('due_date'),
+  completedAt: timestamp('completed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  taskIdIdx: uniqueIndex('idx_tasks_task_id').on(table.taskId),
+  plantingIdx: index('idx_tasks_planting').on(table.plantingId),
+  dueDateIdx: index('idx_tasks_due_date').on(table.dueDate),
+  statusIdx: index('idx_tasks_status').on(table.status),
+}));
+
+// ============================================
+// 6. Weather / Environmental Data
+// ============================================
+export const weatherLogs = pgTable('weather_logs', {
+  id: serial('id').primaryKey(),
+  recordedAt: timestamp('recorded_at').defaultNow(),
+  temperature: decimal('temperature', { precision: 5, scale: 1 }),
+  humidity: decimal('humidity', { precision: 5, scale: 1 }),
+  rainfallInches: decimal('rainfall_inches', { precision: 5, scale: 2 }),
+  soilMoisture: decimal('soil_moisture', { precision: 5, scale: 1 }),
+  sunlightHours: decimal('sunlight_hours', { precision: 4, scale: 1 }),
+  frostWarning: boolean('frost_warning').default(false),
+  heatWarning: boolean('heat_warning').default(false),
+  rawData: jsonb('raw_data'),
+}, (table) => ({
+  recordedAtIdx: index('idx_weather_recorded_at').on(table.recordedAt),
+}));
+
+// ============================================
+// 7. FarmBot Data (if applicable)
+// ============================================
+export const farmbotLogs = pgTable('farmbot_logs', {
+  id: serial('id').primaryKey(),
+  loggedAt: timestamp('logged_at').defaultNow(),
+  deviceId: varchar('device_id', { length: 100 }),
+  eventType: varchar('event_type', { length: 50 }), // watering, planting, sensor, error
+  sensorData: jsonb('sensor_data'),
+  status: varchar('status', { length: 20 }),
+  message: text('message'),
+  rawData: jsonb('raw_data'),
+}, (table) => ({
+  loggedAtIdx: index('idx_farmbot_logged_at').on(table.loggedAt),
+  eventTypeIdx: index('idx_farmbot_event_type').on(table.eventType),
+}));
+
+// ============================================
+// 8. AI Planting Recommendations
+// ============================================
+export const aiRecommendations = pgTable('ai_recommendations', {
+  id: serial('id').primaryKey(),
+  recommendationId: varchar('recommendation_id', { length: 50 }).unique().notNull(),
+  plantId: integer('plant_id').references(() => plants.id),
+  bedId: integer('bed_id').references(() => beds.id),
+  confidence: decimal('confidence', { precision: 3, scale: 2 }),
+  reasoning: text('reasoning'),
+  suggestedPlantingDate: timestamp('suggested_planting_date'),
+  companionSuggestions: text('companion_suggestions'),
+  createdAt: timestamp('created_at').defaultNow(),
+  applied: boolean('applied').default(false),
+  rawData: jsonb('raw_data'),
+}, (table) => ({
+  recommendationIdIdx: uniqueIndex('idx_ai_recommendation_id').on(table.recommendationId),
+}));
+
+// ============================================
+// ## [MM] Schema Updated 2026-05-28 08:50am
+// ============================================
