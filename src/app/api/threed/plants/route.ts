@@ -76,16 +76,18 @@ export async function POST(request: Request) {
       body.plantId = body.commonName.toLowerCase().replace(/\s+/g, '-');
     }
     
+    const now = new Date();
+    
     const newPlant = await db.insert(threedPlants).values({
       ...body,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     }).returning();
     
     return NextResponse.json({
       success: true,
       data: newPlant[0],
-      timestamp: new Date().toISOString()
+      timestamp: now.toISOString()
     });
     
   } catch (error) {
@@ -112,19 +114,32 @@ export async function PUT(request: Request) {
     
     const body = await request.json();
     
+    // Remove fields that shouldn't be updated directly
+    const { id: _, createdAt, updatedAt, plantId, ...updateData } = body;
+    
+    // Ensure dates are handled properly
+    const now = new Date();
+    
     const updated = await db
       .update(threedPlants)
       .set({
-        ...body,
-        updatedAt: new Date(),
+        ...updateData,
+        updatedAt: now,
       })
       .where(eq(threedPlants.id, parseInt(id)))
       .returning();
     
+    if (updated.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Plant not found' },
+        { status: 404 }
+      );
+    }
+    
     return NextResponse.json({
       success: true,
       data: updated[0],
-      timestamp: new Date().toISOString()
+      timestamp: now.toISOString()
     });
     
   } catch (error) {

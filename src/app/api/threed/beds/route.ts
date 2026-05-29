@@ -6,7 +6,6 @@ import { desc, eq, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/threed/beds - List beds with filters
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get('limit') || '100');
@@ -54,7 +53,6 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/threed/beds - Create new bed
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -65,12 +63,15 @@ export async function POST(request: Request) {
     }
     
     // Calculate square feet if dimensions provided
-    if (body.widthFeet && body.lengthFeet && !body.squareFeet) {
-      body.squareFeet = body.widthFeet * body.lengthFeet;
-    }
+    const widthFeet = body.widthFeet ? parseFloat(body.widthFeet) : null;
+    const lengthFeet = body.lengthFeet ? parseFloat(body.lengthFeet) : null;
+    const squareFeet = (widthFeet && lengthFeet) ? widthFeet * lengthFeet : null;
     
     const newBed = await db.insert(threedBeds).values({
       ...body,
+      widthFeet,
+      lengthFeet,
+      squareFeet,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();
@@ -90,7 +91,6 @@ export async function POST(request: Request) {
   }
 }
 
-// PUT /api/threed/beds/:id - Update bed
 export async function PUT(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -104,16 +104,19 @@ export async function PUT(request: Request) {
     }
     
     const body = await request.json();
+    const { id: _, createdAt, updatedAt, ...updateData } = body;
     
     // Recalculate square feet if dimensions changed
-    if (body.widthFeet && body.lengthFeet) {
-      body.squareFeet = body.widthFeet * body.lengthFeet;
+    const widthFeet = updateData.widthFeet ? parseFloat(updateData.widthFeet) : undefined;
+    const lengthFeet = updateData.lengthFeet ? parseFloat(updateData.lengthFeet) : undefined;
+    if (widthFeet && lengthFeet) {
+      updateData.squareFeet = widthFeet * lengthFeet;
     }
     
     const updated = await db
       .update(threedBeds)
       .set({
-        ...body,
+        ...updateData,
         updatedAt: new Date(),
       })
       .where(eq(threedBeds.id, parseInt(id)))
@@ -134,7 +137,6 @@ export async function PUT(request: Request) {
   }
 }
 
-// DELETE /api/threed/beds/:id - Soft delete bed
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -147,15 +149,14 @@ export async function DELETE(request: Request) {
       );
     }
     
-    const updated = await db
-      .update(threedBeds)
-      .set({ isActive: false, updatedAt: new Date() })
+    const deleted = await db
+      .delete(threedBeds)
       .where(eq(threedBeds.id, parseInt(id)))
       .returning();
     
     return NextResponse.json({
       success: true,
-      data: updated[0],
+      data: deleted[0],
       timestamp: new Date().toISOString()
     });
     

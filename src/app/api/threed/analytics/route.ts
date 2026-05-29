@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { threedHarvests, threedPlants, threedPlantings } from '@/lib/auth/schema';
-import { sql, desc } from 'drizzle-orm';
+import { sql, desc, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,44 +17,31 @@ export async function GET() {
       })
       .from(threedHarvests);
     
-    // Get monthly trends (last 6 months)
-    const monthlyTrend = await db.execute(sql`
-      SELECT 
-        TO_CHAR(harvest_date, 'YYYY-MM') as month,
-        COUNT(*) as harvest_count,
-        SUM(weight_lbs) as total_weight
-      FROM threed_harvests
-      WHERE harvest_date > NOW() - INTERVAL '6 months'
-      GROUP BY TO_CHAR(harvest_date, 'YYYY-MM')
-      ORDER BY month DESC
-    `);
-    
-    // Get top producing plants
-    const topPlants = await db
+    // Get monthly trends - FIXED: use the SQL expression in ORDER BY
+    const monthlyTrend = await db
       .select({
-        plantId: threedHarvests.plantId,
+        month: sql<string>`TO_CHAR(${threedHarvests.harvestDate}, 'YYYY-MM')`,
+        count: sql<number>`COUNT(*)`,
         totalWeight: sql<number>`SUM(${threedHarvests.weightLbs})`,
       })
       .from(threedHarvests)
-      .where(sql`${threedHarvests.plantId} IS NOT NULL`)
-      .groupBy(threedHarvests.plantId)
-      .orderBy(sql`totalWeight DESC`)
-      .limit(5);
+      .where(sql`${threedHarvests.harvestDate} > NOW() - INTERVAL '6 months'`)
+      .groupBy(sql`TO_CHAR(${threedHarvests.harvestDate}, 'YYYY-MM')`)
+      .orderBy(sql`TO_CHAR(${threedHarvests.harvestDate}, 'YYYY-MM') DESC`);
     
-    // Fetch plant names for top plants
-    const topPlantsWithNames = [];
-    for (const plant of topPlants) {
-      const plantInfo = await db
-        .select({ commonName: threedPlants.commonName })
-        .from(threedPlants)
-        .where(sql`${threedPlants.id} = ${plant.plantId}`)
-        .limit(1);
-      
-      topPlantsWithNames.push({
-        name: plantInfo[0]?.commonName || 'Unknown',
-        weight: Number(plant.totalWeight) || 0,
-      });
-    }
+    // Get top producing plants
+    const topPlantsRaw = await db
+      .select({
+        plantId: threedHarvests.plantId,
+        plantName: threedPlants.commonName,
+        totalWeight: sql<number>`SUM(${threedHarvests.weightLbs})`,
+      })
+      .from(threedHarvests)
+      .leftJoin(threedPlants, eq(threedHarvests.plantId, threedPlants.id))
+      .where(sql`${threedHarvests.plantId} IS NOT NULL`)
+      .groupBy(threedHarvests.plantId, threedPlants.commonName)
+      .orderBy(sql`SUM(${threedHarvests.weightLbs}) DESC`)
+      .limit(5);
     
     // Calculate average yield per planting
     const activePlantings = await db
@@ -66,10 +53,17 @@ export async function GET() {
       ? Number(harvestStats[0].totalWeight) / activePlantings[0].count
       : 0;
     
-    // Get recent activity
+    // Get recent harvests
     const recentHarvests = await db
-      .select()
+      .select({
+        id: threedHarvests.id,
+        quantity: threedHarvests.quantity,
+        weightLbs: threedHarvests.weightLbs,
+        harvestDate: threedHarvests.harvestDate,
+        plantName: threedPlants.commonName,
+      })
       .from(threedHarvests)
+      .leftJoin(threedPlants, eq(threedHarvests.plantId, threedPlants.id))
       .orderBy(desc(threedHarvests.harvestDate))
       .limit(5);
     
@@ -80,13 +74,22 @@ export async function GET() {
         totalWeight: Number(harvestStats[0]?.totalWeight) || 0,
         totalQuantity: Number(harvestStats[0]?.totalQuantity) || 0,
         avgYieldPerPlant: Number(avgYieldPerPlant),
-        monthlyTrend: monthlyTrend.rows.map(row => ({
+        monthlyTrend: monthlyTrend.map((row) => ({
           month: row.month,
-          weight: Number(row.total_weight) || 0,
-          count: Number(row.harvest_count) || 0,
+          weight: Number(row.totalWeight) || 0,
+          count: Number(row.count) || 0,
         })),
-        topPlants: topPlantsWithNames,
-        recentHarvests,
+        topPlants: topPlantsRaw.map((row) => ({
+          name: row.plantName || 'Unknown',
+          weight: Number(row.totalWeight) || 0,
+        })),
+        recentHarvests: recentHarvests.map((row) => ({
+          id: row.id,
+          quantity: row.quantity,
+          weightLbs: row.weightLbs,
+          harvestDate: row.harvestDate,
+          plantName: row.plantName,
+        })),
       },
       timestamp: new Date().toISOString()
     });

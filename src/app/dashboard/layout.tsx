@@ -165,12 +165,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Tabs.Root value={pathname} className="mb-6">
           <Tabs.List className="flex flex-col space-y-4">
             {/* Traffic Services Section */}
-            <TabGroup 
+            {/* <TabGroup 
               tabs={trafficTabs} 
               currentPath={pathname} 
               title="Traffic Services" 
               icon={Activity}
-            />
+            /> */}
             
             {/* ThreeD Garden Section */}
             <TabGroup 
@@ -183,7 +183,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Tabs.Root>
 
         {/* Page Content */}
-        <div className="rounded-2xl bg-background/50 backdrop-blur-sm border shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-background/50 backdrop-blur-sm border shadow-sm">
           {children}
         </div>
         

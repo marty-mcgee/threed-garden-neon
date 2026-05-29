@@ -8,30 +8,36 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    // Total tasks
     const total = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedTasks);
     
+    // Pending tasks
     const pending = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedTasks)
       .where(sql`${threedTasks.status} = 'pending'`);
     
+    // In progress
     const inProgress = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedTasks)
       .where(sql`${threedTasks.status} = 'in_progress'`);
     
+    // Completed
     const completed = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedTasks)
       .where(sql`${threedTasks.status} = 'completed'`);
     
+    // Overdue
     const overdue = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedTasks)
       .where(sql`${threedTasks.dueDate} < NOW() AND ${threedTasks.status} NOT IN ('completed', 'cancelled')`);
     
+    // By priority - using SQL CASE in orderBy
     const byPriority = await db
       .select({
         priority: threedTasks.priority,
@@ -40,8 +46,16 @@ export async function GET() {
       .from(threedTasks)
       .where(sql`${threedTasks.status} != 'completed'`)
       .groupBy(threedTasks.priority)
-      .orderBy(sql`count DESC`);
+      .orderBy(sql`
+        CASE ${threedTasks.priority}
+          WHEN 'urgent' THEN 1
+          WHEN 'high' THEN 2
+          WHEN 'medium' THEN 3
+          WHEN 'low' THEN 4
+        END
+      `);
     
+    // By type
     const byType = await db
       .select({
         type: threedTasks.type,
@@ -50,19 +64,25 @@ export async function GET() {
       .from(threedTasks)
       .where(sql`${threedTasks.status} != 'completed'`)
       .groupBy(threedTasks.type)
-      .orderBy(sql`count DESC`)
+      .orderBy(sql`COUNT(*) DESC`)
       .limit(5);
     
     return NextResponse.json({
       success: true,
       data: {
-        total: total[0]?.count || 0,
-        pending: pending[0]?.count || 0,
-        inProgress: inProgress[0]?.count || 0,
-        completed: completed[0]?.count || 0,
-        overdue: overdue[0]?.count || 0,
-        byPriority,
-        byType,
+        total: Number(total[0]?.count) || 0,
+        pending: Number(pending[0]?.count) || 0,
+        inProgress: Number(inProgress[0]?.count) || 0,
+        completed: Number(completed[0]?.count) || 0,
+        overdue: Number(overdue[0]?.count) || 0,
+        byPriority: byPriority.map((row) => ({
+          priority: row.priority,
+          count: Number(row.count),
+        })),
+        byType: byType.map((row) => ({
+          type: row.type,
+          count: Number(row.count),
+        })),
       },
       timestamp: new Date().toISOString()
     });

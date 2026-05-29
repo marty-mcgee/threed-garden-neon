@@ -7,23 +7,35 @@ import { useToast } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
+import { ModalConfirm } from '@/components/ui/modal-confirm';
 
 interface Plant {
   id: number;
   plantId: string;
   commonName: string;
   scientificName: string;
+  variety: string;
+  family: string;
   type: string;
   status: string;
+  growthHabit: string;
   daysToMaturity: number;
+  daysToGermination: number;
   spacingInches: number;
+  rowSpacingInches: number;
+  plantingDepthInches: number;
   sunlight: string;
   waterNeeds: string;
   description: string;
   careInstructions: string;
+  harvestInstructions: string;
   imageUrl: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 function PaginationControls({ currentPage, totalPages, totalRecords, pageSize, onPageChange }: { 
@@ -65,6 +77,18 @@ export default function PlantsContent() {
   const [currentPage, setCurrentPage] = useState(0);
   const [pageSize] = useState(25);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // Modal states
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
+  const [formData, setFormData] = useState<Partial<Plant>>({
+    type: 'Vegetable',
+    status: 'active',
+    sunlight: 'Full Sun',
+    waterNeeds: 'Medium',
+  });
 
   const fetchPlants = useCallback(async () => {
     try {
@@ -123,6 +147,88 @@ export default function PlantsContent() {
   const totalPages = Math.ceil(totalRecords / pageSize);
   const currentPageData = getCurrentPageData();
 
+  const openEditModal = (plant: Plant) => {
+    setSelectedPlant(plant);
+    // Remove date fields and other metadata before editing
+    const { createdAt, updatedAt, ...cleanPlant } = plant;
+    setFormData(cleanPlant);
+    setIsEditModalOpen(true);
+  };
+
+  const openDeleteModal = (plant: Plant) => {
+    setSelectedPlant(plant);
+    setIsDeleteModalOpen(true);
+  };
+
+  // CRUD Handlers
+  const handleAddPlant = async () => {
+    try {
+      const response = await fetch('/api/threed/plants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Plant added successfully', 'success');
+        setIsAddModalOpen(false);
+        setFormData({ type: 'Vegetable', status: 'active', sunlight: 'Full Sun', waterNeeds: 'Medium' });
+        fetchPlants();
+      } else {
+        showToast('Failed to add plant', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to add plant', 'error');
+    }
+  };
+
+  const handleUpdatePlant = async () => {
+    if (!selectedPlant) return;
+    try {
+      // Remove any date fields that might cause issues
+      const { createdAt, updatedAt, ...cleanData } = formData;
+      
+      const response = await fetch(`/api/threed/plants?id=${selectedPlant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(cleanData),
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Plant updated successfully', 'success');
+        setIsEditModalOpen(false);
+        setSelectedPlant(null);
+        setFormData({});
+        fetchPlants();
+      } else {
+        showToast('Failed to update plant', 'error');
+      }
+    } catch (error) {
+      console.error('Update error:', error);
+      showToast('Failed to update plant', 'error');
+    }
+  };
+
+  const handleDeletePlant = async () => {
+    if (!selectedPlant) return;
+    try {
+      const response = await fetch(`/api/threed/plants?id=${selectedPlant.id}`, {
+        method: 'DELETE',
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Plant deleted successfully', 'success');
+        setIsDeleteModalOpen(false);
+        setSelectedPlant(null);
+        fetchPlants();
+      } else {
+        showToast('Failed to delete plant', 'error');
+      }
+    } catch (error) {
+      showToast('Failed to delete plant', 'error');
+    }
+  };
+
   const getTypeIcon = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'vegetable': return <Apple className="w-4 h-4 text-green-600" />;
@@ -157,6 +263,11 @@ export default function PlantsContent() {
         </div>
         
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setIsAddModalOpen(true)}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Add Plant
+          </Button>
+          
           <div className="relative">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -180,6 +291,11 @@ export default function PlantsContent() {
             <option value="Flower">Flowers</option>
             <option value="Tree">Trees</option>
           </select>
+          
+          <Button size="sm" onClick={fetchPlants}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
+            Refresh
+          </Button>
         </div>
       </div>
 
@@ -254,15 +370,18 @@ export default function PlantsContent() {
                 <th className="px-4 py-3 text-left text-xs uppercase">Sunlight</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Water</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-xs uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {currentPageData.map((plant) => (
                 <React.Fragment key={plant.id}>
-                  <tr className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleRowExpansion(plant.id)}>
-                    <td className="px-4 py-3"><Info className="w-4 h-4 text-muted-foreground" /></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                  <tr className="hover:bg-muted/50">
+                    <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </td>
+                    <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
+                      <div className="flex items-center gap-2 cursor-pointer">
                         {getTypeIcon(plant.type)}
                         <span className="font-medium">{plant.commonName}</span>
                         {plant.scientificName && (
@@ -272,22 +391,40 @@ export default function PlantsContent() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
                       <Badge variant="outline">{plant.type || 'Unknown'}</Badge>
                     </td>
-                    <td className="px-4 py-3 text-sm">{plant.daysToMaturity || 'N/A'} days</td>
-                    <td className="px-4 py-3 text-sm">{plant.spacingInches || 'N/A'}"</td>
-                    <td className="px-4 py-3 text-sm">{plant.sunlight || 'N/A'}</td>
-                    <td className="px-4 py-3 text-sm">{plant.waterNeeds || 'N/A'}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-sm" onClick={() => toggleRowExpansion(plant.id)}>
+                      {plant.daysToMaturity || 'N/A'} days
+                    </td>
+                    <td className="px-4 py-3 text-sm" onClick={() => toggleRowExpansion(plant.id)}>
+                      {plant.spacingInches || 'N/A'}"
+                    </td>
+                    <td className="px-4 py-3 text-sm" onClick={() => toggleRowExpansion(plant.id)}>
+                      {plant.sunlight || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3 text-sm" onClick={() => toggleRowExpansion(plant.id)}>
+                      {plant.waterNeeds || 'N/A'}
+                    </td>
+                    <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
                       <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(plant.status)}`}>
                         {plant.status}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openEditModal(plant)}>
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDeleteModal(plant)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
                   </tr>
                   {expandedRows.has(plant.id) && (
                     <tr className="bg-muted/30">
-                      <td colSpan={8} className="px-4 py-3">
+                      <td colSpan={9} className="px-4 py-3">
                         <div className="text-sm space-y-2">
                           <div>
                             <p className="font-medium text-foreground">Description</p>
@@ -310,13 +447,13 @@ export default function PlantsContent() {
                             </div>
                           </div>
                         </div>
-                      </td>
-                    </tr>
+                       </td>
+                     </tr>
                   )}
                 </React.Fragment>
               ))}
             </tbody>
-          </table>
+           </table>
         </div>
         
         {totalPages > 1 && (
@@ -337,6 +474,207 @@ export default function PlantsContent() {
           </div>
         )}
       </Card>
+
+      {/* Add Plant Modal */}
+      <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Plant">
+        <div className="space-y-4">
+          <div>
+            <Label>Common Name *</Label>
+            <Input
+              value={formData.commonName || ''}
+              onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
+              placeholder="e.g., Roma Tomato"
+              required
+            />
+          </div>
+          <div>
+            <Label>Scientific Name</Label>
+            <Input
+              value={formData.scientificName || ''}
+              onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
+              placeholder="e.g., Solanum lycopersicum"
+            />
+          </div>
+          <div>
+            <Label>Type</Label>
+            <select
+              value={formData.type || 'Vegetable'}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Vegetable">Vegetable</option>
+              <option value="Fruit">Fruit</option>
+              <option value="Herb">Herb</option>
+              <option value="Flower">Flower</option>
+              <option value="Tree">Tree</option>
+            </select>
+          </div>
+          <div>
+            <Label>Days to Maturity</Label>
+            <Input
+              type="number"
+              value={formData.daysToMaturity || ''}
+              onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Spacing (inches)</Label>
+            <Input
+              type="number"
+              value={formData.spacingInches || ''}
+              onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Sunlight</Label>
+            <select
+              value={formData.sunlight || 'Full Sun'}
+              onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Full Sun">Full Sun</option>
+              <option value="Partial Sun">Partial Sun</option>
+              <option value="Partial Shade">Partial Shade</option>
+              <option value="Full Shade">Full Shade</option>
+            </select>
+          </div>
+          <div>
+            <Label>Water Needs</Label>
+            <select
+              value={formData.waterNeeds || 'Medium'}
+              onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+            />
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleAddPlant}>Add Plant</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Edit Plant Modal */}
+      <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Plant">
+        <div className="space-y-4">
+          <div>
+            <Label>Common Name *</Label>
+            <Input
+              value={formData.commonName || ''}
+              onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label>Scientific Name</Label>
+            <Input
+              value={formData.scientificName || ''}
+              onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Type</Label>
+            <select
+              value={formData.type || 'Vegetable'}
+              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Vegetable">Vegetable</option>
+              <option value="Fruit">Fruit</option>
+              <option value="Herb">Herb</option>
+              <option value="Flower">Flower</option>
+            </select>
+          </div>
+          <div>
+            <Label>Days to Maturity</Label>
+            <Input
+              type="number"
+              value={formData.daysToMaturity || ''}
+              onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Spacing (inches)</Label>
+            <Input
+              type="number"
+              value={formData.spacingInches || ''}
+              onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) })}
+            />
+          </div>
+          <div>
+            <Label>Sunlight</Label>
+            <select
+              value={formData.sunlight || 'Full Sun'}
+              onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Full Sun">Full Sun</option>
+              <option value="Partial Sun">Partial Sun</option>
+              <option value="Partial Shade">Partial Shade</option>
+              <option value="Full Shade">Full Shade</option>
+            </select>
+          </div>
+          <div>
+            <Label>Water Needs</Label>
+            <select
+              value={formData.waterNeeds || 'Medium'}
+              onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="Low">Low</option>
+              <option value="Medium">Medium</option>
+              <option value="High">High</option>
+            </select>
+          </div>
+          <div>
+            <Label>Description</Label>
+            <Textarea
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setSelectedPlant(null);
+                setFormData({});
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="secondary"
+              onClick={handleUpdatePlant}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Save Changes
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ModalConfirm
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeletePlant}
+        title="Delete Plant"
+        message={`Are you sure you want to delete "${selectedPlant?.commonName}"? This action cannot be undone.`}
+      />
     </div>
   );
 }

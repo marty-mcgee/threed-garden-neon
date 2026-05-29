@@ -8,10 +8,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    // Total plantings
     const total = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedPlantings);
     
+    // By status
     const byStatus = await db
       .select({
         status: threedPlantings.status,
@@ -19,8 +21,9 @@ export async function GET() {
       })
       .from(threedPlantings)
       .groupBy(threedPlantings.status)
-      .orderBy(sql`count DESC`);
+      .orderBy(sql`COUNT(*) DESC`);
     
+    // By growth stage
     const byGrowthStage = await db
       .select({
         growthStage: threedPlantings.growthStage,
@@ -28,25 +31,34 @@ export async function GET() {
       })
       .from(threedPlantings)
       .groupBy(threedPlantings.growthStage)
-      .orderBy(sql`count DESC`);
+      .orderBy(sql`COUNT(*) DESC`);
     
-    const recentPlantings = await db
+    // Planted in last 30 days
+    const recent = await db
       .select({ count: sql<number>`COUNT(*)` })
       .from(threedPlantings)
-      .where(sql`planted_date > NOW() - INTERVAL '30 days'`);
+      .where(sql`${threedPlantings.plantedDate} > NOW() - INTERVAL '30 days'`);
     
-    const totalPlantsPlanted = await db
+    // Total plants in ground
+    const totalPlants = await db
       .select({ sum: sql<number>`SUM(${threedPlantings.quantity})` })
-      .from(threedPlantings);
+      .from(threedPlantings)
+      .where(sql`${threedPlantings.status} IN ('planted', 'growing', 'harvesting')`);
     
     return NextResponse.json({
       success: true,
       data: {
-        total: total[0]?.count || 0,
-        byStatus,
-        byGrowthStage,
-        plantedLast30Days: recentPlantings[0]?.count || 0,
-        totalPlantsPlanted: totalPlantsPlanted[0]?.sum || 0,
+        total: Number(total[0]?.count) || 0,
+        byStatus: byStatus.map((row) => ({
+          status: row.status,
+          count: Number(row.count),
+        })),
+        byGrowthStage: byGrowthStage.map((row) => ({
+          stage: row.growthStage,
+          count: Number(row.count),
+        })),
+        plantedLast30Days: Number(recent[0]?.count) || 0,
+        totalPlantsPlanted: Number(totalPlants[0]?.sum) || 0,
       },
       timestamp: new Date().toISOString()
     });
