@@ -5,8 +5,8 @@ import "./globals.css";
 import { inter } from "./fonts";
 
 export const metadata: Metadata = {
-  title: "MC.News Traffic Dashboard",
-  description: "Real-time Northern California highway data using Caltrans + CHP APIs",
+  title: "ThreeD Garden Dashboard",
+  description: "Smart Garden Management • Real-time Traffic • FarmBot Integration",
 };
 
 export default function RootLayout({
