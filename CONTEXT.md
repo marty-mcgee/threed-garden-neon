@@ -1051,3 +1051,206 @@ Commit and deploy! 🌱🎉
 **Last Updated: May 28, 2026 @ 12:14pm PST**
 
 ---
+
+Your 3D garden is now much more immersive and beautiful! 🌳💧🌸
+Perfect! I will release this to Production environment on Vercel. In the meantime, could you provide me a brief CONTEXT.md update so that I may update my CONTEXT markdown notes?
+
+Absolutely! Here is the updated CONTEXT.md section for your ThreeD Garden enhancements:
+markdown
+
+---
+
+## 🎮 3D Garden Visualization (R3F + Three.js)
+
+### Overview
+The ThreeD Garden features an interactive 3D environment built with React Three Fiber (R3F) and Three.js, providing immersive visualization of garden beds, plants, and environmental elements.
+
+### Technical Stack
+- **@react-three/fiber** - React renderer for Three.js
+- **@react-three/drei** - Helper components for R3F
+- **@react-three/postprocessing** - Visual effects (Bloom, Vignette)
+- **Three.js** - Core 3D library
+
+### 3D Scene Features
+
+| Feature | Description |
+|---------|-------------|
+| **Interactive Camera** | Orbit controls with pan, zoom, and rotate |
+| **Auto-Rotate** | Toggle automatic camera rotation |
+| **Time-of-Day Lighting** | Dynamic lighting based on current time (dawn, day, dusk, night) |
+| **Fog Effects** | Depth perception enhancement |
+| **Bloom Effect** | Glow effect on plants and fruits |
+| **Vignette** | Subtle edge darkening for focus |
+| **Animated Clouds** | Decorative clouds floating overhead |
+| **Grass Sparkles** | Particle effects on ground |
+
+### Scene Elements
+
+| Element | Count | Description |
+|---------|-------|-------------|
+| **Garden Beds** | Dynamic | User-created beds with custom colors |
+| **Plants** | Dynamic | Growth-stage based 3D models |
+| **Decorative Trees** | 8 | Evergreen trees around perimeter |
+| **Water Features** | 2 | Animated ponds with ripple effects |
+| **Flowers** | 8 | Colorful decorative flowers |
+| **Grid Helper** | 1 | Reference grid on ground |
+
+### Plant Models Library
+
+| Plant Type | Growth Stages | Visual Features |
+|------------|---------------|-----------------|
+| Tomato | seed → seedling → vegetative → flowering → fruiting → mature | Red fruits, green foliage |
+| Basil | seed → seedling → vegetative → flowering → mature | Green foliage, yellow flowers |
+| Lettuce | seed → seedling → vegetative → mature | Layered green leaves |
+| Pepper | seed → seedling → vegetative → flowering → fruiting → mature | Red/green peppers |
+| Strawberry | seed → seedling → vegetative → flowering → fruiting → mature | Red berries |
+| Corn | seed → seedling → vegetative → flowering → fruiting → mature | Yellow corn ears |
+| Sunflower | seed → seedling → vegetative → flowering → mature | Yellow flower heads |
+| Rose | seed → seedling → vegetative → flowering → mature | Pink/red flowers |
+
+### Plant Model Properties
+
+| Property | Description |
+|----------|-------------|
+| **Height** | Scales with growth stage (0.1 to 2.0 units) |
+| **Foliage Radius** | Expands as plant matures |
+| **Fruit Count** | Increases from 0 to 8 depending on type |
+| **Colors** | Customizable foliage and fruit colors |
+| **Sway Animation** | Gentle wind simulation for mature plants |
+| **Hover Info** | Shows plant name and growth stage |
+
+### Controls
+
+| Action | Control |
+|--------|---------|
+| Rotate view | Drag left mouse |
+| Pan view | Right-click + drag |
+| Zoom | Scroll wheel |
+| Auto-rotate | Toggle button (bottom right) |
+| Select object | Click on bed or plant |
+| Toggle stats | "Show Stats" button |
+| Toggle overlay | "Hide Controls" button |
+
+### Performance Optimizations
+- **Chunked loading** for large gardens
+- **Instance rendering** for repeated elements
+- **Shadow map optimization** (2048x2048 resolution)
+- **Fog culling** for distant objects
+- **Dynamic LOD** (planned for future)
+
+### Integration with Database
+- Plant models are linked to `threed_plants` table via `model_type` field
+- Growth stage determined by `planting.growthStage`
+- Position data from `threed_plantings` table
+- Bed layout from `threed_beds` table
+
+### Adding New Plant Models
+
+To add a new plant model, extend the `plantModels` object in `src/components/threed/PlantModels.tsx`:
+
+```typescript
+'new-plant': {
+  type: 'Vegetable', // or 'Herb', 'Fruit', 'Flower'
+  growthStages: {
+    'seed': { height: 0.1, foliageRadius: 0.1, ... },
+    'seedling': { ... },
+    // ... 6 stages
+  },
+}
+
+Known Limitations
+
+    Mobile touch controls not fully optimized
+
+    Very large gardens (>100 plants) may impact performance
+
+    Custom GLTF models not yet supported (planned)
+
+Future Enhancements
+
+    Custom GLTF/GLB model import
+
+    Seasonal visual changes
+
+    Weather particle effects (rain, snow)
+
+    Day/night cycle animation
+
+    Bird animations
+
+    Water ripple interaction
+
+    Mobile touch gestures
+
+🚀 Recent Updates (May 30, 2026)
+3D Garden Enhancements
+
+    Added decorative trees (8) around garden perimeter
+
+    Added water features (2) with ripple animations
+
+    Added colorful flowers (8) as decorative elements
+
+    Added floating clouds for atmosphere
+
+    Implemented auto-rotate camera mode
+
+    Added bloom post-processing effect
+
+    Added vignette effect for focus
+
+    Enhanced ground with grid helper and grass sparkles
+
+    Improved shadow quality and lighting
+
+    Added time-of-day based lighting simulation
+
+    Added fog for depth perception
+
+    Added hover tooltips for plants
+
+Plant Model Improvements
+
+    Added 9 plant types with full growth stages
+
+    Implemented fruit visualization for mature plants
+
+    Added swaying animation for plants
+
+    Added custom color support for foliage
+
+    Added hover information display
+
+Camera & Controls
+
+    Added auto-rotate toggle button
+
+    Improved orbit controls sensitivity
+
+    Added stats panel for performance monitoring
+
+    Added controls overlay with instructions
+
+Bug Fixes
+
+    Fixed planting data mapping in 3D scene
+
+    Fixed position coordinate parsing
+
+    Fixed plant model selection based on plant name
+
+    Fixed bed positioning in 3D space
+
+text
+
+
+This update captures all the 3D visualization enhancements, plant models, controls, and future plans for your ThreeD Garden. Good luck with the production release! 🚀🌱
+
+
+---
+
+## [MM] CONTEXT.md
+**Last Updated: May 29, 2026 @ 11:20pm PST**
+**v0.1.7**
+
+---
