@@ -7,8 +7,8 @@ import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';
 import * as Tabs from '@radix-ui/react-tabs';
 import { 
-  Flame, Activity, Sun, Moon, MapPin, AlertTriangle, BarChart3, Radio, Car,
-  Gauge, TrendingUp, Droplets, Sprout, Box, Leaf, Apple, Cpu, Calendar
+  Flame, Activity, Sun, Moon, MapPin, AlertTriangle, BarChart3, Radio, Car, Carrot, ScanEye,
+  Gauge, TrendingUp, Droplets, Sprout, Box, Leaf, Apple, Cpu, Calendar, Image, BedDouble
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,9 +27,10 @@ const trafficTabs = [
 
 // ThreeD Garden Tabs
 const gardenTabs = [
-  { path: '/dashboard/threed', name: 'Garden Overview', icon: Sprout, color: 'green' },
+  { path: '/dashboard/threed', name: 'Dashboard', icon: ScanEye, color: 'green' },
   { path: '/dashboard/threed/plants', name: 'Plants', icon: Leaf, color: 'green' },
-  { path: '/dashboard/threed/beds', name: 'Beds', icon: Box, color: 'blue' },
+  { path: '/dashboard/threed/models', name: 'Models', icon: Box, color: 'yellow' },
+  { path: '/dashboard/threed/beds', name: 'Beds', icon: BedDouble, color: 'blue' },
   { path: '/dashboard/threed/plantings', name: 'Plantings', icon: Sprout, color: 'emerald' },
   { path: '/dashboard/threed/tasks', name: 'Tasks', icon: Calendar, color: 'orange' },
   { path: '/dashboard/threed/harvests', name: 'Harvests', icon: Apple, color: 'red' },
@@ -48,6 +49,7 @@ const getTabColor = (color: string) => {
     green: 'data-[state=active]:bg-green-50 dark:data-[state=active]:bg-green-950/30 data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400',
     cyan: 'data-[state=active]:bg-cyan-50 dark:data-[state=active]:bg-cyan-950/30 data-[state=active]:text-cyan-700 dark:data-[state=active]:text-cyan-400',
     amber: 'data-[state=active]:bg-amber-50 dark:data-[state=active]:bg-amber-950/30 data-[state=active]:text-amber-700 dark:data-[state=active]:text-amber-400',
+    yellow: 'data-[state=active]:bg-yellow-50 dark:data-[state=active]:bg-yellow-950/30 data-[state=active]:text-yellow-700 dark:data-[state=active]:text-yellow-400',
   };
   return colors[color] || colors.blue;
 };
@@ -121,11 +123,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Logo and Title */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 flex items-center justify-center shadow-lg">
-                <Sprout className="w-5 h-5 text-white" />
+                <Carrot className="w-5 h-5 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">
-                  ThreeD Garden + Traffic Monitor
+                  ThreeD Garden
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   Smart Garden Management • Real-time Traffic • FarmBot Integration
@@ -176,8 +178,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <TabGroup 
               tabs={gardenTabs} 
               currentPath={pathname} 
-              title="ThreeD Garden" 
-              icon={Sprout}
+              // title="ThreeD Garden" 
+              title="" 
+              icon={Carrot}
             />
           </Tabs.List>
         </Tabs.Root>
@@ -193,10 +196,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             🌱 ThreeD Garden • 🚗 Traffic Monitor • 🤖 FarmBot Integration
           </p>
           <p className="mt-1">
-            Data sources: Caltrans, 511.org, CHP, CalFire, OpenWeatherMap, FarmBot API
+            {/* Data sources: Caltrans, 511.org, CHP, CalFire, OpenWeatherMap, FarmBot API */}
+            Data sources: OpenWeatherMap, FarmBot API
           </p>
           <p className="mt-1">
-            Built with Next.js, Neon Postgres, Drizzle ORM, Three.js, shadcn/ui
+            Built with Next.js, Neon Postgres, Drizzle ORM, shadcn/ui, Three.js, R3Fiber
           </p>
         </footer>
       </div>

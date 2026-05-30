@@ -1,6 +1,6 @@
 {
   "name": "threed-garden-neon",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3333",
@@ -29,7 +29,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
-    "@types/three": "^0.184.1",
+    "@vercel/blob": "^2.4.0",
     "@vercel/functions": "^3.3.3",
     "axios": "^1.16.0",
     "better-auth": "^1.4.18",
@@ -54,18 +54,19 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/cheerio": "^1.0.0",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
+    "@types/node-cron": "^3.0.11",
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.184.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "drizzle-kit": "^0.31.9",
     "tailwindcss": "^4",
     "tailwind-merge": "^3.4.0",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "@types/node-cron": "^3.0.11",
-    "@types/leaflet": "^1.9.21",
-    "@types/cheerio": "^1.0.0"
+    "typescript": "^5"
   }
 }

@@ -15,10 +15,8 @@ import {
   foreignKey,
   pgSchema,
   pgEnum,
-  time,
-  AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import { relations, sql } from 'drizzle-orm';
+import { relations } from 'drizzle-orm';
 
 // ============================================
 // ## Better Auth: User Session + Account
@@ -398,8 +396,13 @@ export const calfireIncidents = pgTable('calfire_incidents', {
 }));
 
 // ============================================
-// ## [MM] Schema Updated 2026-05-30
+// ## [MM] Schema Updated 2026-05-27 07:12am
 // ============================================
+
+// ============================================
+// ## [MM] Schema Updated 2026-05-28 09:31am
+// ============================================
+
 
 // ============================================
 // ENUMS for type safety
@@ -412,31 +415,9 @@ export const taskPriorityEnum = pgEnum('threed_task_priority', ['low', 'medium',
 export const taskStatusEnum = pgEnum('threed_task_status', ['pending', 'in_progress', 'completed', 'cancelled']);
 export const bedShapeEnum = pgEnum('threed_bed_shape', ['rectangle', 'square', 'circle', 'raised', 'container', 'custom']);
 export const farmbotStatusEnum = pgEnum('threed_farmbot_status', ['online', 'offline', 'maintenance', 'error']);
-// Update the modelTypeEnum to include more values
-export const modelTypeEnum = pgEnum('threed_model_type', [
-  'procedural', 
-  'gltf', 
-  'glb', 
-  'usdz', 
-  'obj', 
-  'herb-generic',
-  'vegetable-generic',
-  'flower-generic',
-  'fruit-generic',
-  'tree-generic',
-  'custom'
-]);
-export const wateringFrequencyEnum = pgEnum('threed_watering_frequency', [
-  'daily', 
-  'weekly', 
-  'custom', 
-  'moisture-based',
-  'hourly',
-  'bi-daily'
-]);
 
 // ============================================
-// 1. threed_plants - Master plant database (UPDATED with GLTF support)
+// 1. threed_plants - Master plant database
 // ============================================
 export const threedPlants = pgTable('threed_plants', {
   id: serial('id').primaryKey(),
@@ -448,15 +429,9 @@ export const threedPlants = pgTable('threed_plants', {
   type: plantTypeEnum('type').default('Vegetable'),
   status: plantStatusEnum('status').default('active'),
   
-  // 3D Model fields - ENHANCED
-  modelType: modelTypeEnum('model_type').default('procedural'),
-  modelPath: varchar('model_path', { length: 500 }), // URL or path to GLTF/GLB
-  modelMetadata: jsonb('model_metadata').default({}), // Store scale, rotation, offsets, animations
-  isCustomModel: boolean('is_custom_model').default(false),
-  modelVersion: integer('model_version').default(1),
-  
-  // Legacy model fields (kept for backward compatibility)
-  customModelUrl: text('custom_model_url'),
+  // NEW: 3D Model fields
+  modelType: varchar('model_type', { length: 50 }), // tomato, basil, pepper, etc.
+  customModelUrl: text('custom_model_url'), // For custom GLTF/GLB models
   modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1'),
   foliageColor: varchar('foliage_color', { length: 20 }).default('#32CD32'),
   fruitColor: varchar('fruit_color', { length: 20 }).default('#FF6347'),
@@ -502,55 +477,10 @@ export const threedPlants = pgTable('threed_plants', {
   commonNameIdx: index('idx_threed_plants_common_name').on(table.commonName),
   typeIdx: index('idx_threed_plants_type').on(table.type),
   statusIdx: index('idx_threed_plants_status').on(table.status),
-  modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
 }));
 
 // ============================================
-// 1b. threed_models - GLTF model library (NEW)
-// ============================================
-export const threedModels = pgTable('threed_models', {
-  id: serial('id').primaryKey(),
-  plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'cascade' }),
-  
-  modelName: varchar('model_name', { length: 255 }).notNull(),
-  modelType: modelTypeEnum('model_type').notNull(),
-  filePath: varchar('file_path', { length: 500 }).notNull(),
-  fileSize: integer('file_size'), // in bytes
-  
-  // Model properties
-  scale: decimal('scale', { precision: 5, scale: 2 }).default('1.0'),
-  rotationY: decimal('rotation_y', { precision: 5, scale: 2 }).default('0.0'),
-  offsetX: decimal('offset_x', { precision: 5, scale: 2 }).default('0.0'),
-  offsetY: decimal('offset_y', { precision: 5, scale: 2 }).default('0.0'),
-  offsetZ: decimal('offset_z', { precision: 5, scale: 2 }).default('0.0'),
-  
-  // LOD support for performance
-  hasLOD: boolean('has_lod').default(false),
-  lodLevels: jsonb('lod_levels').default({}), // { low: 'path/to/low.glb', medium: 'path/to/medium.glb' }
-  
-  // Animation support
-  animations: jsonb('animations').default([]), // ['idle', 'sway', 'grow', 'flower']
-  defaultAnimation: varchar('default_animation', { length: 50 }),
-  
-  // Model metadata
-  isActive: boolean('is_active').default(true),
-  isDefault: boolean('is_default').default(false),
-  uploadedBy: varchar('uploaded_by', { length: 255 }),
-  uploadedAt: timestamp('uploaded_at').defaultNow(),
-  
-  // Additional metadata (author, license, etc.)
-  metadata: jsonb('metadata').default({}),
-  
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  plantIdIdx: index('idx_threed_models_plant_id').on(table.plantId),
-  modelTypeIdx: index('idx_threed_models_type').on(table.modelType),
-  activeIdx: index('idx_threed_models_active').on(table.isActive),
-}));
-
-// ============================================
-// 2. threed_beds - Garden layout (UPDATED with GLTF support)
+// 2. threed_beds - Garden layout
 // ============================================
 export const threedBeds = pgTable('threed_beds', {
   id: serial('id').primaryKey(),
@@ -591,18 +521,13 @@ export const threedBeds = pgTable('threed_beds', {
 }));
 
 // ============================================
-// 3. threed_plantings - Plants in beds (UPDATED with GLTF support)
+// 3. threed_plantings - Plants in beds
 // ============================================
 export const threedPlantings = pgTable('threed_plantings', {
   id: serial('id').primaryKey(),
   plantingId: varchar('planting_id', { length: 50 }).unique().notNull(),
   plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'set null' }),
   bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'set null' }),
-  
-  // GLTF model override (use specific model for this planting)
-  customModelId: integer('custom_model_id').references(() => threedModels.id, { onDelete: 'set null' }),
-  modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1.0'),
-  modelOffset: jsonb('model_offset').default({ x: 0, y: 0, z: 0 }),
   
   // Planting details
   quantity: integer('quantity').default(1),
@@ -631,105 +556,10 @@ export const threedPlantings = pgTable('threed_plantings', {
   plantIdx: index('idx_threed_plantings_plant').on(table.plantId),
   bedIdx: index('idx_threed_plantings_bed').on(table.bedId),
   statusIdx: index('idx_threed_plantings_status').on(table.status),
-  customModelIdx: index('idx_threed_plantings_custom_model').on(table.customModelId),
 }));
 
 // ============================================
-// 4. threed_watering_schedules - Automated watering (NEW)
-// ============================================
-export const threedWateringSchedules = pgTable('threed_watering_schedules', {
-  id: serial('id').primaryKey(),
-  scheduleId: varchar('schedule_id', { length: 50 }).unique().notNull(),
-  plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'cascade' }),
-  farmbotId: integer('farmbot_id').references(() => threedFarmbots.id, { onDelete: 'set null' }),
-  bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'cascade' }),
-  plantingId: integer('planting_id').references(() => threedPlantings.id, { onDelete: 'cascade' }),
-  
-  // Schedule configuration
-  frequency: wateringFrequencyEnum('frequency').notNull(),
-  intervalDays: integer('interval_days'), // For custom frequency
-  daysOfWeek: integer('days_of_week').array(), // 0-6 for Sunday-Saturday
-  timeOfDay: time('time_of_day'), // When to water (e.g., '08:00:00')
-  
-  // Watering parameters
-  durationMs: integer('duration_ms').notNull(), // How long to water
-  volumeMl: integer('volume_ml'), // Alternative to duration
-  moistureThreshold: integer('moisture_threshold'), // If using moisture-based scheduling
-  
-  // Schedule state
-  nextWatering: timestamp('next_watering').notNull(),
-  lastWatering: timestamp('last_watering'),
-  isActive: boolean('is_active').default(true),
-  
-  // Weather awareness
-  skipIfRain: boolean('skip_if_rain').default(true),
-  maxTemperature: integer('max_temperature'), // Skip if above this temp (F)
-  minTemperature: integer('min_temperature'), // Skip if below this temp (F)
-  maxWindSpeed: integer('max_wind_speed'), // Skip if windy (mph)
-  
-  // Recurrence
-  repeatCount: integer('repeat_count'), // Number of times to repeat (-1 for infinite)
-  timesExecuted: integer('times_executed').default(0),
-  
-  // Notes
-  notes: text('notes'),
-  
-  // Metadata
-  createdBy: varchar('created_by', { length: 255 }),
-  createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow(),
-}, (table) => ({
-  scheduleIdIdx: uniqueIndex('idx_threed_watering_schedule_id').on(table.scheduleId),
-  plantIdx: index('idx_threed_watering_plant').on(table.plantId),
-  farmbotIdx: index('idx_threed_watering_farmbot').on(table.farmbotId),
-  nextWateringIdx: index('idx_threed_watering_next').on(table.nextWatering),
-  activeIdx: index('idx_threed_watering_active').on(table.isActive),
-  compositeNextActiveIdx: index('idx_threed_watering_next_active').on(table.nextWatering, table.isActive),
-}));
-
-// ============================================
-// 5. threed_watering_history - Watering logs (NEW)
-// ============================================
-export const threedWateringHistory = pgTable('threed_watering_history', {
-  id: serial('id').primaryKey(),
-  historyId: varchar('history_id', { length: 50 }).unique().notNull(),
-  scheduleId: integer('schedule_id').references(() => threedWateringSchedules.id, { onDelete: 'set null' }),
-  plantId: integer('plant_id').references(() => threedPlants.id),
-  farmbotId: integer('farmbot_id').references(() => threedFarmbots.id),
-  plantingId: integer('planting_id').references(() => threedPlantings.id),
-  
-  // Execution details
-  status: varchar('status', { length: 20 }).notNull(), // 'success', 'failed', 'skipped'
-  durationMs: integer('duration_ms'),
-  volumeMl: integer('volume_ml'),
-  
-  // Skip/failure reasons
-  skipReason: text('skip_reason'), // If skipped (rain, temperature, etc.)
-  errorMessage: text('error_message'), // If failed
-  
-  // Sensor data
-  soilMoistureBefore: integer('soil_moisture_before'), // If available
-  soilMoistureAfter: integer('soil_moisture_after'),
-  temperatureAtTime: decimal('temperature_at_time', { precision: 5, scale: 1 }),
-  
-  // Weather at execution time
-  weatherAtTime: jsonb('weather_at_time'), // Temperature, conditions, wind speed
-  
-  // Execution metadata
-  executedAt: timestamp('executed_at').defaultNow(),
-  executedBy: varchar('executed_by', { length: 50 }).default('automated'), // 'automated', 'manual', 'user'
-  
-  createdAt: timestamp('created_at').defaultNow(),
-}, (table) => ({
-  historyIdIdx: uniqueIndex('idx_threed_watering_history_id').on(table.historyId),
-  scheduleIdx: index('idx_threed_watering_history_schedule').on(table.scheduleId),
-  plantIdx: index('idx_threed_watering_history_plant').on(table.plantId),
-  executedAtIdx: index('idx_threed_watering_history_executed_at').on(table.executedAt),
-  statusIdx: index('idx_threed_watering_history_status').on(table.status),
-}));
-
-// ============================================
-// 6. threed_harvests - Harvest logging
+// 4. threed_harvests - Harvest logging
 // ============================================
 export const threedHarvests = pgTable('threed_harvests', {
   id: serial('id').primaryKey(),
@@ -756,7 +586,7 @@ export const threedHarvests = pgTable('threed_harvests', {
 }));
 
 // ============================================
-// 7. threed_tasks - Garden tasks/to-do (UPDATED with watering integration)
+// 5. threed_tasks - Garden tasks/to-do
 // ============================================
 export const threedTasks = pgTable('threed_tasks', {
   id: serial('id').primaryKey(),
@@ -764,7 +594,6 @@ export const threedTasks = pgTable('threed_tasks', {
   plantingId: integer('planting_id').references(() => threedPlantings.id, { onDelete: 'set null' }),
   plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'set null' }),
   bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'set null' }),
-  wateringScheduleId: integer('watering_schedule_id').references(() => threedWateringSchedules.id, { onDelete: 'set null' }),
   
   // Task details
   title: varchar('title', { length: 200 }).notNull(),
@@ -789,11 +618,10 @@ export const threedTasks = pgTable('threed_tasks', {
   plantingIdx: index('idx_threed_tasks_planting').on(table.plantingId),
   dueDateIdx: index('idx_threed_tasks_due_date').on(table.dueDate),
   statusIdx: index('idx_threed_tasks_status').on(table.status),
-  wateringScheduleIdx: index('idx_threed_tasks_watering').on(table.wateringScheduleId),
 }));
 
 // ============================================
-// 8. threed_weather_logs - Environmental data
+// 6. threed_weather_logs - Environmental data
 // ============================================
 export const threedWeatherLogs = pgTable('threed_weather_logs', {
   id: serial('id').primaryKey(),
@@ -821,7 +649,7 @@ export const threedWeatherLogs = pgTable('threed_weather_logs', {
 }));
 
 // ============================================
-// 9. threed_farmbots - FarmBot devices
+// 7. threed_farmbots - FarmBot devices
 // ============================================
 export const threedFarmbots = pgTable('threed_farmbots', {
   id: serial('id').primaryKey(),
@@ -855,7 +683,7 @@ export const threedFarmbots = pgTable('threed_farmbots', {
 }));
 
 // ============================================
-// 10. threed_farmbot_logs - FarmBot activity log
+// 8. threed_farmbot_logs - FarmBot activity log
 // ============================================
 export const threedFarmbotLogs = pgTable('threed_farmbot_logs', {
   id: serial('id').primaryKey(),
@@ -874,7 +702,7 @@ export const threedFarmbotLogs = pgTable('threed_farmbot_logs', {
 }));
 
 // ============================================
-// 11. threed_system_logs - Application logging
+// 9. threed_system_logs - Application logging
 // ============================================
 export const threedSystemLogs = pgTable('threed_system_logs', {
   id: serial('id').primaryKey(),
@@ -890,28 +718,18 @@ export const threedSystemLogs = pgTable('threed_system_logs', {
 }));
 
 // ============================================
-// RELATIONSHIPS (UPDATED)
+// RELATIONSHIPS
 // ============================================
 export const threedPlantsRelations = relations(threedPlants, ({ many }) => ({
   plantings: many(threedPlantings),
   harvests: many(threedHarvests),
   tasks: many(threedTasks),
-  models: many(threedModels),
-  wateringSchedules: many(threedWateringSchedules),
-}));
-
-export const threedModelsRelations = relations(threedModels, ({ one }) => ({
-  plant: one(threedPlants, {
-    fields: [threedModels.plantId],
-    references: [threedPlants.id],
-  }),
 }));
 
 export const threedBedsRelations = relations(threedBeds, ({ many }) => ({
   plantings: many(threedPlantings),
   farmbots: many(threedFarmbots),
   tasks: many(threedTasks),
-  wateringSchedules: many(threedWateringSchedules),
 }));
 
 export const threedPlantingsRelations = relations(threedPlantings, ({ one, many }) => ({
@@ -923,53 +741,8 @@ export const threedPlantingsRelations = relations(threedPlantings, ({ one, many 
     fields: [threedPlantings.bedId],
     references: [threedBeds.id],
   }),
-  customModel: one(threedModels, {
-    fields: [threedPlantings.customModelId],
-    references: [threedModels.id],
-  }),
   harvests: many(threedHarvests),
   tasks: many(threedTasks),
-  wateringSchedules: many(threedWateringSchedules),
-}));
-
-export const threedWateringSchedulesRelations = relations(threedWateringSchedules, ({ one, many }) => ({
-  plant: one(threedPlants, {
-    fields: [threedWateringSchedules.plantId],
-    references: [threedPlants.id],
-  }),
-  farmbot: one(threedFarmbots, {
-    fields: [threedWateringSchedules.farmbotId],
-    references: [threedFarmbots.id],
-  }),
-  bed: one(threedBeds, {
-    fields: [threedWateringSchedules.bedId],
-    references: [threedBeds.id],
-  }),
-  planting: one(threedPlantings, {
-    fields: [threedWateringSchedules.plantingId],
-    references: [threedPlantings.id],
-  }),
-  history: many(threedWateringHistory),
-  tasks: many(threedTasks),
-}));
-
-export const threedWateringHistoryRelations = relations(threedWateringHistory, ({ one }) => ({
-  schedule: one(threedWateringSchedules, {
-    fields: [threedWateringHistory.scheduleId],
-    references: [threedWateringSchedules.id],
-  }),
-  plant: one(threedPlants, {
-    fields: [threedWateringHistory.plantId],
-    references: [threedPlants.id],
-  }),
-  farmbot: one(threedFarmbots, {
-    fields: [threedWateringHistory.farmbotId],
-    references: [threedFarmbots.id],
-  }),
-  planting: one(threedPlantings, {
-    fields: [threedWateringHistory.plantingId],
-    references: [threedPlantings.id],
-  }),
 }));
 
 export const threedFarmbotsRelations = relations(threedFarmbots, ({ one, many }) => ({
@@ -978,23 +751,15 @@ export const threedFarmbotsRelations = relations(threedFarmbots, ({ one, many })
     references: [threedBeds.id],
   }),
   logs: many(threedFarmbotLogs),
-  wateringSchedules: many(threedWateringSchedules),
-  wateringHistory: many(threedWateringHistory),
 }));
 
 // Export types for use in the application
 export type ThreedPlant = typeof threedPlants.$inferSelect;
 export type NewThreedPlant = typeof threedPlants.$inferInsert;
-export type ThreedModel = typeof threedModels.$inferSelect;
-export type NewThreedModel = typeof threedModels.$inferInsert;
 export type ThreedBed = typeof threedBeds.$inferSelect;
 export type NewThreedBed = typeof threedBeds.$inferInsert;
 export type ThreedPlanting = typeof threedPlantings.$inferSelect;
 export type NewThreedPlanting = typeof threedPlantings.$inferInsert;
-export type ThreedWateringSchedule = typeof threedWateringSchedules.$inferSelect;
-export type NewThreedWateringSchedule = typeof threedWateringSchedules.$inferInsert;
-export type ThreedWateringHistory = typeof threedWateringHistory.$inferSelect;
-export type NewThreedWateringHistory = typeof threedWateringHistory.$inferInsert;
 export type ThreedHarvest = typeof threedHarvests.$inferSelect;
 export type NewThreedHarvest = typeof threedHarvests.$inferInsert;
 export type ThreedTask = typeof threedTasks.$inferSelect;
@@ -1003,7 +768,7 @@ export type ThreedWeatherLog = typeof threedWeatherLogs.$inferSelect;
 export type ThreedFarmbot = typeof threedFarmbots.$inferSelect;
 export type ThreedFarmbotLog = typeof threedFarmbotLogs.$inferSelect;
 
+
 // ============================================
-// ## Schema Updated 2026-05-30
-// ## Added GLTF model support and automated watering schedules
+// ## [MM] Schema Updated 2026-05-28 10:00am
 // ============================================

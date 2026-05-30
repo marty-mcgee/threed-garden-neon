@@ -1,5 +1,5 @@
 // app/components/ui/LoadingSpinner.tsx
-export default function LoadingSpinner() {
+export function LoadingSpinner() {
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
