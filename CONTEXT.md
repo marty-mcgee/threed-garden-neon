@@ -792,6 +792,8 @@ OPENWEATHER_API_KEY=your_api_key
 │   │       │   ├── logsContent.tsx
 │   │       │   └── page.tsx
 │   │       ├── page.tsx
+│   │       ├── plant-models
+│   │       │   └── page.tsx
 │   │       ├── plantings
 │   │       │   ├── page.tsx
 │   │       │   └── plantingsContent.tsx
@@ -830,8 +832,10 @@ OPENWEATHER_API_KEY=your_api_key
 │   │   ├── FloatingUI.tsx
 │   │   ├── GardenBed.tsx
 │   │   ├── GardenGround.tsx
+│   │   ├── GardenPlant-original.tsx
 │   │   ├── GardenPlant.tsx
 │   │   ├── GardenViewer.tsx
+│   │   ├── PlantModels.tsx
 │   │   ├── ThreeDGarden.tsx
 │   │   └── WeatherEffects.tsx
 │   └── ui
@@ -843,6 +847,8 @@ OPENWEATHER_API_KEY=your_api_key
 │       ├── input.tsx
 │       ├── label.tsx
 │       ├── loading-spinner.tsx
+│       ├── modal-confirm.tsx
+│       ├── modal.tsx
 │       ├── navbar.tsx
 │       ├── scroll-area.tsx
 │       ├── select.tsx
@@ -850,6 +856,7 @@ OPENWEATHER_API_KEY=your_api_key
 │       ├── skeleton.tsx
 │       ├── table.tsx
 │       ├── tabs.tsx
+│       ├── textarea.tsx
 │       └── toast.tsx
 └── lib
     ├── auth
@@ -902,18 +909,19 @@ OPENWEATHER_API_KEY=your_api_key
     │   └── threed
     │       ├── FarmBotPoller.ts
     │       ├── PlantDataPoller.ts
+    │       ├── PlantModelMapping.ts
     │       └── WeatherPoller.ts
     └── utils
         ├── cityGeocoder.ts
         ├── index.ts
         └── locationCoords.ts
 
-154 directories, 196 files
+155 directories, 203 files
 
 ---
 
 ## [MM] CONTEXT.md
-**Last Updated: May 28, 2026 @ 12:12pm PST**
+**Last Updated: May 29, 2026 @ 11:20pm PST**
 
 ---
 
