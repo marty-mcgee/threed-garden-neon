@@ -638,6 +638,45 @@ export default function PlantsContent() {
             </select>
           </div>
           <div>
+            <Label>3D Model Type</Label>
+            <select
+              value={formData.modelType || ''}
+              onChange={(e) => setFormData({ ...formData, modelType: e.target.value })}
+              className="w-full px-3 py-2 border rounded-lg bg-background"
+            >
+              <option value="">Auto-detect</option>
+              <option value="tomato">Tomato</option>
+              <option value="pepper">Pepper</option>
+              <option value="lettuce">Lettuce</option>
+              <option value="carrot">Carrot</option>
+              <option value="basil">Basil</option>
+              <option value="strawberry">Strawberry</option>
+              <option value="sunflower">Sunflower</option>
+              <option value="rose">Rose</option>
+              <option value="corn">Corn</option>
+              <option value="herb-generic">Generic Herb</option>
+              <option value="flower-generic">Generic Flower</option>
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Foliage Color</Label>
+              <Input
+                type="color"
+                value={formData.foliageColor || '#32CD32'}
+                onChange={(e) => setFormData({ ...formData, foliageColor: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Fruit Color</Label>
+              <Input
+                type="color"
+                value={formData.fruitColor || '#FF6347'}
+                onChange={(e) => setFormData({ ...formData, fruitColor: e.target.value })}
+              />
+            </div>
+          </div>
+          <div>
             <Label>Description</Label>
             <Textarea
               value={formData.description || ''}

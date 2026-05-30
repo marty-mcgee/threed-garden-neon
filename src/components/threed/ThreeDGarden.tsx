@@ -15,11 +15,11 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
 // Import our custom components
-import { GardenBed } from '@/components/threed/GardenBed';
-import { GardenPlant } from '@/components/threed/GardenPlant';
-import { GardenGround } from '@/components/threed/GardenGround';
-import { WeatherEffects } from '@/components/threed/WeatherEffects';
-import { FloatingUI } from '@/components/threed/FloatingUI';
+import { GardenBed } from './GardenBed';
+import { GardenPlant } from './GardenPlant';
+import { GardenGround } from './GardenGround';
+import { WeatherEffects } from './WeatherEffects';
+import { FloatingUI } from './FloatingUI';
 
 interface Bed {
   id: number;
@@ -33,35 +33,102 @@ interface Bed {
   color: string;
 }
 
-interface Planting {
+interface RawPlantingData {
+  planting: {
+    id: number;
+    plantingId: string;
+    plantId: number;
+    bedId: number;
+    quantity: number;
+    spacingInches: string;
+    positionX: string;
+    positionY: string;
+    positionZ: string;
+    plantedDate: string;
+    status: string;
+    growthStage: string;
+    health: string;
+    notes: string;
+  };
+  plant: {
+    id: number;
+    commonName: string;
+    scientificName: string;
+    type: string;
+    daysToMaturity: number;
+  };
+  bed: {
+    id: number;
+    name: string;
+    shape: string;
+    widthFeet: string;
+    lengthFeet: string;
+    positionX: string;
+    positionY: string;
+    positionZ: string;
+    color: string;
+  };
+}
+
+interface FlattenedPlanting {
   id: number;
+  plantId: number;
   plantName: string;
   plantType: string;
   quantity: number;
   positionX: number;
+  positionY: number;
   positionZ: number;
   growthStage: string;
   daysToMaturity: number;
+  bedId: number;
 }
 
 interface ThreeDGardenProps {
   beds: Bed[];
-  plantings: Planting[];
+  plantings: RawPlantingData[];  // Accept the nested structure from the API
   weather?: {
     temperature: number;
     condition: string;
     rainfall: number;
   };
   onBedSelect?: (bed: Bed) => void;
-  onPlantSelect?: (planting: Planting) => void;
+  onPlantSelect?: (planting: FlattenedPlanting) => void;
 }
 
-// Main Garden Scene Component
+// Helper function to flatten planting data
+function flattenPlanting(rawPlanting: RawPlantingData): FlattenedPlanting {
+  return {
+    id: rawPlanting.planting.id,
+    plantId: rawPlanting.planting.plantId,
+    plantName: rawPlanting.plant?.commonName || 'Unknown Plant',
+    plantType: rawPlanting.plant?.type || 'Vegetable',
+    quantity: rawPlanting.planting.quantity || 1,
+    positionX: parseFloat(rawPlanting.planting.positionX || '0'),
+    positionY: parseFloat(rawPlanting.planting.positionY || '0'),
+    positionZ: parseFloat(rawPlanting.planting.positionZ || '0'),
+    growthStage: rawPlanting.planting.growthStage || 'vegetative',
+    daysToMaturity: rawPlanting.plant?.daysToMaturity || 60,
+    bedId: rawPlanting.planting.bedId,
+  };
+}
+
+// Garden Scene Component
 function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
   const { camera, gl } = useThree();
   const [timeOfDay, setTimeOfDay] = useState<'dawn' | 'day' | 'dusk' | 'night'>('day');
   const [ambientIntensity, setAmbientIntensity] = useState(0.5);
   const [sunPosition, setSunPosition] = useState([10, 20, 5]);
+  
+  // Flatten all plantings
+  const flattenedPlantings = plantings.map(flattenPlanting);
+  
+  // Log what we're rendering
+  console.log('🎮 GardenScene rendering:', {
+    bedsCount: beds.length,
+    plantingsCount: plantings.length,
+    flattenedPlantings: flattenedPlantings
+  });
   
   // Simulate time of day based on weather or user preference
   useEffect(() => {
@@ -128,26 +195,29 @@ function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: T
       {/* Garden Beds */}
       {beds.map((bed) => (
         <GardenBed 
-          key={bed.id} 
+          key={`bed-${bed.id}`} 
           bed={bed} 
           onClick={() => onBedSelect?.(bed)} 
         />
       ))}
       
-      {/* Plants */}
-      {plantings.map((planting) => (
-        <GardenPlant 
-          key={planting.id} 
-          planting={planting} 
-          onClick={() => onPlantSelect?.(planting)} 
-        />
-      ))}
+      {/* Plants - pass flattened plantings */}
+      {flattenedPlantings.map((planting) => {
+        console.log(`🌱 Passing flattened planting to GardenPlant:`, planting);
+        return (
+          <GardenPlant 
+            key={`plant-${planting.id}`} 
+            planting={planting} 
+            onClick={() => onPlantSelect?.(planting)} 
+          />
+        );
+      })}
       
       {/* Weather Effects */}
       {weather && <WeatherEffects weather={weather} />}
       
-      {/* Floating UI Elements */}
-      <FloatingUI beds={beds} plantings={plantings} />
+      {/* Floating UI */}
+      <FloatingUI beds={beds} plantings={flattenedPlantings} />
     </>
   );
 }
@@ -156,6 +226,12 @@ function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: T
 export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
   const [showStats, setShowStats] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  
+  console.log('🎯 ThreeDGarden received:', { 
+    bedsCount: beds.length, 
+    plantingsCount: plantings.length,
+    rawPlantings: plantings 
+  });
   
   if (!beds.length && !plantings.length) {
     return (

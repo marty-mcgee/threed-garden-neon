@@ -429,6 +429,13 @@ export const threedPlants = pgTable('threed_plants', {
   type: plantTypeEnum('type').default('Vegetable'),
   status: plantStatusEnum('status').default('active'),
   
+  // NEW: 3D Model fields
+  modelType: varchar('model_type', { length: 50 }), // tomato, basil, pepper, etc.
+  customModelUrl: text('custom_model_url'), // For custom GLTF/GLB models
+  modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1'),
+  foliageColor: varchar('foliage_color', { length: 20 }).default('#32CD32'),
+  fruitColor: varchar('fruit_color', { length: 20 }).default('#FF6347'),
+  
   // Growth parameters
   growthHabit: varchar('growth_habit', { length: 50 }),
   daysToMaturity: integer('days_to_maturity'),

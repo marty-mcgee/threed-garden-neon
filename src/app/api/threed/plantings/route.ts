@@ -37,7 +37,13 @@ export async function GET(request: Request) {
     const plantings = await db
       .select({
         planting: threedPlantings,
-        plant: threedPlants,
+        plant: {
+          id: threedPlants.id,
+          commonName: threedPlants.commonName,
+          scientificName: threedPlants.scientificName,
+          type: threedPlants.type,
+          daysToMaturity: threedPlants.daysToMaturity,
+        },
         bed: threedBeds,
       })
       .from(threedPlantings)
@@ -78,17 +84,37 @@ export async function POST(request: Request) {
     // Generate plantingId if not provided
     if (!body.plantingId) {
       const plant = await db
-        .select({ plantId: threedPlants.plantId })
+        .select({ plantId: threedPlants.plantId, commonName: threedPlants.commonName })
         .from(threedPlants)
-        .where(eq(threedPlants.id, body.plantId))
+        .where(eq(threedPlants.id, parseInt(body.plantId)))
         .limit(1);
       
       const date = new Date().toISOString().split('T')[0];
-      body.plantingId = `${plant[0]?.plantId || 'plant'}-${date}-${Date.now()}`;
+      const plantName = plant[0]?.commonName?.toLowerCase().replace(/\s+/g, '-') || 'plant';
+      body.plantingId = `${plantName}-${date}-${Date.now()}`;
     }
     
+    // 🔧 FIX: Convert date strings to Date objects
+    const plantedDate = body.plantedDate ? new Date(body.plantedDate) : null;
+    const expectedGerminationDate = body.expectedGerminationDate ? new Date(body.expectedGerminationDate) : null;
+    const expectedHarvestDate = body.expectedHarvestDate ? new Date(body.expectedHarvestDate) : null;
+    
     const newPlanting = await db.insert(threedPlantings).values({
-      ...body,
+      plantingId: body.plantingId,
+      plantId: body.plantId ? parseInt(body.plantId) : null,
+      bedId: body.bedId ? parseInt(body.bedId) : null,
+      quantity: body.quantity || 1,
+      spacingInches: body.spacingInches ? parseInt(body.spacingInches) : null,
+      positionX: body.positionX ? parseFloat(body.positionX) : null,
+      positionY: body.positionY ? parseFloat(body.positionY) : null,
+      positionZ: body.positionZ ? parseFloat(body.positionZ) : null,
+      plantedDate: plantedDate,
+      expectedGerminationDate: expectedGerminationDate,
+      expectedHarvestDate: expectedHarvestDate,
+      status: body.status || 'planted',
+      growthStage: body.growthStage || 'seed',
+      health: body.health || 'good',
+      notes: body.notes || null,
       createdAt: new Date(),
       updatedAt: new Date(),
     }).returning();
@@ -135,11 +161,26 @@ export async function PUT(request: Request) {
     }
     
     const body = await request.json();
+    const { id: _, createdAt, updatedAt, plantingId, ...updateData } = body;
+    
+    // 🔧 FIX: Convert date strings to Date objects
+    if (updateData.plantedDate) updateData.plantedDate = new Date(updateData.plantedDate);
+    if (updateData.expectedGerminationDate) updateData.expectedGerminationDate = new Date(updateData.expectedGerminationDate);
+    if (updateData.expectedHarvestDate) updateData.expectedHarvestDate = new Date(updateData.expectedHarvestDate);
+    
+    // Convert numeric fields
+    if (updateData.plantId) updateData.plantId = parseInt(updateData.plantId);
+    if (updateData.bedId) updateData.bedId = parseInt(updateData.bedId);
+    if (updateData.quantity) updateData.quantity = parseInt(updateData.quantity);
+    if (updateData.spacingInches) updateData.spacingInches = parseInt(updateData.spacingInches);
+    if (updateData.positionX) updateData.positionX = parseFloat(updateData.positionX);
+    if (updateData.positionY) updateData.positionY = parseFloat(updateData.positionY);
+    if (updateData.positionZ) updateData.positionZ = parseFloat(updateData.positionZ);
     
     const updated = await db
       .update(threedPlantings)
       .set({
-        ...body,
+        ...updateData,
         updatedAt: new Date(),
       })
       .where(eq(threedPlantings.id, parseInt(id)))

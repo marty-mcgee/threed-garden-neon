@@ -1,12 +1,12 @@
 // src/app/dashboard/threed/garden/page.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useToast } from '@/components/ui/toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Box, Sprout, Sun, Droplets, Thermometer } from 'lucide-react';
+import { RefreshCw, Box, Sprout, Sun, Droplets, Thermometer, MapPin, AlertCircle } from 'lucide-react';
 
 // Dynamically import the 3D viewer to avoid SSR issues
 const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
@@ -18,7 +18,7 @@ const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
   ),
 });
 
-interface Bed {
+interface GardenBed {
   id: number;
   name: string;
   shape: string;
@@ -30,99 +30,149 @@ interface Bed {
   color: string;
 }
 
-interface Planting {
+interface GardenPlanting {
   id: number;
+  plantId: number;
   plantName: string;
   plantType: string;
   quantity: number;
   positionX: number;
+  positionY: number;
   positionZ: number;
   growthStage: string;
   daysToMaturity: number;
+  bedId: number;
+  modelType?: string;
+  customColor?: string;
 }
 
 export default function Garden3DPage() {
   const { showToast, ToastComponent } = useToast();
-  const [beds, setBeds] = useState<Bed[]>([]);
-  const [plantings, setPlantings] = useState<Planting[]>([]);
+  const [beds, setBeds] = useState<GardenBed[]>([]);
+  const [plantings, setPlantings] = useState<GardenPlanting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
-  const [selectedPlant, setSelectedPlant] = useState<Planting | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedBed, setSelectedBed] = useState<GardenBed | null>(null);
+  const [selectedPlant, setSelectedPlant] = useState<GardenPlanting | null>(null);
   const [weather, setWeather] = useState<any>(null);
-  
-  const fetchData = async () => {
+  const [debugInfo, setDebugInfo] = useState<string>('');
+
+  const fetchData = useCallback(async () => {
     try {
-      setLoading(true);
+      setRefreshing(true);
+      setDebugInfo('Fetching data...');
       
       // Fetch beds
-      const bedsRes = await fetch('/api/threed/beds?limit=100');
+      const bedsRes = await fetch('/api/threed/beds?limit=100&showAll=true');
       const bedsData = await bedsRes.json();
+      
       if (bedsData.success) {
-        setBeds(bedsData.data.map((item: any) => ({
+        const mappedBeds = bedsData.data.map((item: any) => ({
           id: item.id,
           name: item.name,
-          shape: item.shape,
+          shape: item.shape || 'rectangle',
           widthFeet: parseFloat(item.widthFeet || 4),
           lengthFeet: parseFloat(item.lengthFeet || 8),
           positionX: parseFloat(item.positionX || 0),
           positionY: parseFloat(item.positionY || 0),
           positionZ: parseFloat(item.positionZ || 0),
           color: item.color || '#8B5E3C',
-        })));
+        }));
+        setBeds(mappedBeds);
+        setDebugInfo(`Loaded ${mappedBeds.length} beds`);
+        console.log('✅ Beds loaded:', mappedBeds);
       }
       
       // Fetch plantings with plant data
       const plantingsRes = await fetch('/api/threed/plantings?limit=500');
       const plantingsData = await plantingsRes.json();
-      if (plantingsData.success) {
-        setPlantings(plantingsData.data.map((item: any) => ({
-          id: item.planting.id,
-          plantName: item.plant?.commonName || 'Unknown Plant',
-          plantType: item.plant?.type || 'Vegetable',
-          quantity: item.planting.quantity || 1,
-          positionX: parseFloat(item.planting.positionX || 0),
-          positionZ: parseFloat(item.planting.positionZ || 0),
-          growthStage: item.planting.growthStage || 'vegetative',
-          daysToMaturity: item.plant?.daysToMaturity || 60,
-        })));
+      
+      console.log('Raw plantings data:', plantingsData);
+      
+      if (plantingsData.success && plantingsData.data) {
+        // 🔧 FIX: Properly extract the data from the nested structure
+        const mappedPlantings = plantingsData.data.map((item: any) => {
+          // The API returns { planting: {...}, plant: {...}, bed: {...} }
+          const planting = item.planting;
+          const plant = item.plant;
+          
+          return {
+            id: planting.id,
+            plantId: planting.plantId,
+            plantName: plant?.commonName || 'Unknown Plant',
+            plantType: plant?.type || 'Vegetable',
+            quantity: planting.quantity || 1,
+            positionX: parseFloat(planting.positionX || 0),
+            positionY: parseFloat(planting.positionY || 0),
+            positionZ: parseFloat(planting.positionZ || 0),
+            growthStage: planting.growthStage || 'vegetative',
+            daysToMaturity: plant?.daysToMaturity || 60,
+            bedId: planting.bedId,
+            modelType: plant?.modelType || null,
+            customColor: plant?.foliageColor || null,
+          };
+        });
+        
+        setPlantings(mappedPlantings);
+        setDebugInfo(`Loaded ${mappedPlantings.length} plantings`);
+        console.log('✅ Plantings loaded:', mappedPlantings);
+        
+        // Log the first planting for debugging
+        if (mappedPlantings.length > 0) {
+          console.log('Sample planting:', mappedPlantings[0]);
+        }
+      } else {
+        setDebugInfo(`Plantings load failed: ${plantingsData.error || 'No data'}`);
       }
       
       // Fetch current weather
-      const weatherRes = await fetch('/api/threed/weather?limit=1');
-      const weatherData = await weatherRes.json();
-      if (weatherData.success && weatherData.data.length > 0) {
-        const latest = weatherData.data[0];
-        setWeather({
-          temperature: latest.temperature,
-          condition: latest.temperature > 80 ? 'sunny' : 'cloudy',
-          rainfall: latest.rainfallInches || 0,
-        });
+      try {
+        const weatherRes = await fetch('/api/threed/weather?limit=1');
+        const weatherData = await weatherRes.json();
+        if (weatherData.success && weatherData.data && weatherData.data.length > 0) {
+          const latest = weatherData.data[0];
+          setWeather({
+            temperature: latest.temperature,
+            condition: latest.temperature > 80 ? 'sunny' : 'cloudy',
+            rainfall: latest.rainfallInches || 0,
+          });
+        }
+      } catch (weatherErr) {
+        console.warn('Weather fetch failed:', weatherErr);
       }
       
     } catch (error) {
       console.error('Error fetching garden data:', error);
+      setDebugInfo(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
       showToast('Failed to load garden data', 'error');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
-  
+  }, [showToast]);
+
   useEffect(() => {
     fetchData();
-  }, []);
-  
-  const handleBedSelect = (bed: Bed) => {
+  }, [fetchData]);
+
+  const handleBedSelect = (bed: GardenBed) => {
     setSelectedBed(bed);
     setSelectedPlant(null);
     showToast(`Selected: ${bed.name}`, 'info');
   };
-  
-  const handlePlantSelect = (plant: Planting) => {
+
+  const handlePlantSelect = (plant: GardenPlanting) => {
     setSelectedPlant(plant);
     setSelectedBed(null);
     showToast(`${plant.plantName} - ${plant.growthStage} stage`, 'info');
   };
-  
+
+  // Calculate stats
+  const totalBeds = beds.length;
+  const totalPlants = plantings.reduce((sum, p) => sum + (p.quantity || 0), 0);
+  const activePlantings = plantings.filter(p => p.growthStage !== 'harvested').length;
+  const uniqueBeds = new Set(plantings.map(p => p.bedId).filter(Boolean)).size;
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -130,7 +180,7 @@ export default function Garden3DPage() {
       </div>
     );
   }
-  
+
   return (
     <div className="space-y-6">
       {ToastComponent}
@@ -139,17 +189,55 @@ export default function Garden3DPage() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">3D Garden Explorer</h1>
           <p className="text-sm text-muted-foreground">
-            {beds.length} beds • {plantings.reduce((sum, p) => sum + p.quantity, 0)} plants
+            {totalBeds} beds • {totalPlants} plants • {activePlantings} active plantings
           </p>
+          {debugInfo && (
+            <p className="text-xs text-muted-foreground mt-1 font-mono">
+              {debugInfo}
+            </p>
+          )}
         </div>
         
         <div className="flex gap-2">
-          <Button size="sm" onClick={fetchData}>
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-            Refresh
+          <Button size="sm" onClick={fetchData} disabled={refreshing}>
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
           </Button>
         </div>
       </div>
+      
+      {/* Warning if no beds or plantings */}
+      {beds.length === 0 && (
+        <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+            <p className="text-sm text-yellow-800 dark:text-yellow-400">
+              No garden beds found. Create a bed to see your 3D garden.
+            </p>
+          </div>
+          <div className="mt-2">
+            <Button size="sm" variant="outline" onClick={() => window.location.href = '/dashboard/threed/beds'}>
+              Go to Beds
+            </Button>
+          </div>
+        </div>
+      )}
+      
+      {plantings.length === 0 && beds.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Sprout className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <p className="text-sm text-blue-800 dark:text-blue-400">
+              No plantings found. Create a planting to see plants in your 3D garden.
+            </p>
+          </div>
+          <div className="mt-2">
+            <Button size="sm" variant="outline" onClick={() => window.location.href = '/dashboard/threed/plantings'}>
+              Go to Plantings
+            </Button>
+          </div>
+        </div>
+      )}
       
       {/* Weather Widget */}
       {weather && (
@@ -183,7 +271,7 @@ export default function Garden3DPage() {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-xs text-muted-foreground">Total Beds</p>
-                <p className="text-2xl font-bold text-foreground">{beds.length}</p>
+                <p className="text-2xl font-bold text-foreground">{totalBeds}</p>
               </div>
               <Box className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -194,7 +282,7 @@ export default function Garden3DPage() {
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-xs text-muted-foreground">Total Plants</p>
-                <p className="text-2xl font-bold text-green-600">{plantings.reduce((sum, p) => sum + p.quantity, 0)}</p>
+                <p className="text-2xl font-bold text-green-600">{totalPlants}</p>
               </div>
               <Sprout className="w-5 h-5 text-green-600" />
             </div>
@@ -204,10 +292,10 @@ export default function Garden3DPage() {
           <CardContent className="p-3">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-muted-foreground">Growing</p>
-                <p className="text-2xl font-bold text-lime-600">{plantings.filter(p => p.growthStage === 'vegetative').length}</p>
+                <p className="text-xs text-muted-foreground">Active Plantings</p>
+                <p className="text-2xl font-bold text-blue-600">{activePlantings}</p>
               </div>
-              <Sprout className="w-5 h-5 text-lime-600" />
+              <MapPin className="w-5 h-5 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -215,10 +303,10 @@ export default function Garden3DPage() {
           <CardContent className="p-3">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-xs text-muted-foreground">Flowering/Fruiting</p>
-                <p className="text-2xl font-bold text-orange-600">{plantings.filter(p => p.growthStage === 'fruiting' || p.growthStage === 'flowering').length}</p>
+                <p className="text-xs text-muted-foreground">Beds with Plants</p>
+                <p className="text-2xl font-bold text-purple-600">{uniqueBeds}</p>
               </div>
-              <Sprout className="w-5 h-5 text-orange-600" />
+              <MapPin className="w-5 h-5 text-purple-600" />
             </div>
           </CardContent>
         </Card>
@@ -247,6 +335,7 @@ export default function Garden3DPage() {
                 <p><span className="font-medium">Bed:</span> {selectedBed.name}</p>
                 <p><span className="font-medium">Dimensions:</span> {selectedBed.widthFeet}' × {selectedBed.lengthFeet}'</p>
                 <p><span className="font-medium">Color:</span> <span className="inline-block w-4 h-4 rounded-full" style={{ backgroundColor: selectedBed.color }} /></p>
+                <p><span className="font-medium">Position:</span> ({selectedBed.positionX}, {selectedBed.positionZ})</p>
               </div>
             )}
             {selectedPlant && (
@@ -255,11 +344,20 @@ export default function Garden3DPage() {
                 <p><span className="font-medium">Type:</span> {selectedPlant.plantType}</p>
                 <p><span className="font-medium">Growth Stage:</span> {selectedPlant.growthStage}</p>
                 <p><span className="font-medium">Quantity:</span> {selectedPlant.quantity}</p>
+                <p><span className="font-medium">Position:</span> ({selectedPlant.positionX}, {selectedPlant.positionZ})</p>
                 {selectedPlant.daysToMaturity && (
                   <p><span className="font-medium">Days to Maturity:</span> {selectedPlant.daysToMaturity}</p>
                 )}
               </div>
             )}
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" variant="outline" onClick={() => {
+                if (selectedBed) window.location.href = '/dashboard/threed/beds';
+                if (selectedPlant) window.location.href = '/dashboard/threed/plantings';
+              }}>
+                Manage {selectedBed ? 'Bed' : 'Planting'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
