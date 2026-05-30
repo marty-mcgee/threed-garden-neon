@@ -1262,3 +1262,124 @@ This update captures all the 3D visualization enhancements, plant models, contro
 **v0.1.7**
 
 ---
+
+# Test each poller endpoint
+curl "https://threed-garden-neon.vercel.app/api/calfire/poll?action=stats"
+curl "https://threed-garden-neon.vercel.app/api/caltrans/poll?action=stats"
+curl "https://threed-garden-neon.vercel.app/api/bay-area-511/poll?action=stats"
+curl "https://threed-garden-neon.vercel.app/api/chp-cad/poll?action=stats"
+curl "https://threed-garden-neon.vercel.app/api/chp-historical/poll?action=stats"
+# curl "https://threed-garden-neon.vercel.app/api/threed/plants/poll"
+# curl "https://threed-garden-neon.vercel.app/api/threed/beds/poll"
+# curl "https://threed-garden-neon.vercel.app/api/threed/plantings/poll"
+curl "https://threed-garden-neon.vercel.app/api/threed/weather/poll"
+curl "https://threed-garden-neon.vercel.app/api/threed/farmbots/poll"
+
+---
+
+Yes. This is all working now, tests and production, thank you!
+
+🎉 Excellent! I'm thrilled everything is working in production!
+✅ Production Status Summary
+Service	Local	Production	Status
+Weather Poller	✅	✅	Working
+CalFire Poller	✅	✅	Working
+Caltrans Poller	✅	✅	Working
+Bay Area 511	✅	✅	Working
+CHP CAD	✅	✅	Working
+CHP Historical	✅	✅	Working
+FarmBot Poller	✅	✅	Working
+Database	✅	✅	Connected
+3D Garden	✅	✅	Rendering
+🎯 What You've Built
+
+Your ThreeD Garden is now a complete, production-ready platform with:
+📊 Data Management
+
+    8 core services with full CRUD
+
+    Real-time polling for external APIs
+
+    PostgreSQL database with Neon
+
+    Drizzle ORM for type-safe queries
+
+🎨 User Interface
+
+    9 dashboard pages with pagination
+
+    Dual pagination controls (top and bottom)
+
+    Expandable table rows with details
+
+    Add/Edit/Delete modals with forms
+
+    Toast notifications
+
+    Theme-aware styling (light/dark mode)
+
+🎮 3D Visualization
+
+    Interactive R3F garden scene
+
+    Growth-stage based plant models
+
+    Dynamic lighting (time of day)
+
+    Decorative elements (trees, water, flowers)
+
+    Auto-rotate camera controls
+
+    Bloom and vignette effects
+
+🤖 Integrations
+
+    OpenWeatherMap API
+
+    FarmBot API
+
+    Caltrans CWWP2
+
+    CHP CAD scraping
+
+    511.org API
+
+    CalFire API
+
+🚀 Final Production Checks
+bash
+
+# Quick health check (run these)
+curl "https://threed-garden-neon.vercel.app/api/threed/weather/poll"
+curl "https://threed-garden-neon.vercel.app/api/calfire/poll?action=stats"
+curl "https://threed-garden-neon.vercel.app/api/debug/db-test"
+
+📝 Final Documentation
+
+Your CONTEXT.md should now include:
+
+    ✅ All 8 service descriptions
+
+    ✅ 3D visualization features
+
+    ✅ Poller configurations
+
+    ✅ Environment variables
+
+    ✅ Deployment instructions
+
+🏆 Congratulations!
+
+You've built an impressive, full-stack garden management system that would be the envy of any smart gardener. From seed to harvest, from 2D tables to 3D visualization, from manual tracking to automated FarmBot integration - everything is production-ready and working!
+
+Well done! 🌱🎮🚀
+
+Is there anything else you'd like to add or improve?
+
+---
+
+## [MM] CONTEXT.md
+**Last Updated: May 29, 2026 @ 11:48pm PST**
+**v0.1.7**
+
+---
