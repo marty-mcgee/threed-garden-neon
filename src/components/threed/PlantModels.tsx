@@ -1,272 +1,316 @@
 // src/components/threed/PlantModels.tsx
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Sphere, Cylinder, Html } from '@react-three/drei';
-import * as THREE from 'three';
+import { Text, Html } from '@react-three/drei';
+import { Group, MeshStandardMaterial, Color } from 'three';
 
-// Plant model configuration interface
-interface PlantModelConfig {
+// Plant model configuration for each plant type
+export const plantModels: Record<string, {
   type: string;
-  growthStages: {
-    [key: string]: {
-      height: number;
-      foliageRadius: number;
-      trunkHeight: number;
-      trunkRadius: number;
-      color: string;
-      foliageColor: string;
-      hasFruit: boolean;
-      fruitColor?: string;
-      fruitCount?: number;
-    };
+  colors: {
+    foliage: string;
+    fruit?: string;
+    flower?: string;
   };
-}
-
-// Pre-defined plant models
-export const plantModels: Record<string, PlantModelConfig> = {
+  growthStages: {
+    seed: { height: number; radius: number; color?: string };
+    seedling: { height: number; radius: number; color?: string };
+    vegetative: { height: number; radius: number; color?: string };
+    flowering: { height: number; radius: number; color?: string };
+    fruiting: { height: number; radius: number; color?: string };
+    mature: { height: number; radius: number; color?: string };
+  };
+}> = {
   'tomato': {
     type: 'Vegetable',
+    colors: { foliage: '#4CAF50', fruit: '#FF5722' },
     growthStages: {
-      'seed': { height: 0.1, foliageRadius: 0.1, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.3, foliageRadius: 0.2, trunkHeight: 0.15, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.7, foliageRadius: 0.4, trunkHeight: 0.4, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.9, foliageRadius: 0.5, trunkHeight: 0.5, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'fruiting': { height: 1.0, foliageRadius: 0.55, trunkHeight: 0.55, trunkRadius: 0.1, color: '#5C4033', foliageColor: '#2E8B57', hasFruit: true, fruitColor: '#FF6347', fruitCount: 4 },
-      'mature': { height: 1.2, foliageRadius: 0.6, trunkHeight: 0.6, trunkRadius: 0.1, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#FF4500', fruitCount: 6 },
-    },
+      seed: { height: 0.1, radius: 0.1, color: '#8B4513' },
+      seedling: { height: 0.3, radius: 0.15, color: '#6B8E23' },
+      vegetative: { height: 0.8, radius: 0.4, color: '#4CAF50' },
+      flowering: { height: 1.0, radius: 0.5, color: '#66BB6A' },
+      fruiting: { height: 1.2, radius: 0.6, color: '#4CAF50' },
+      mature: { height: 1.5, radius: 0.7, color: '#388E3C' }
+    }
   },
   'basil': {
     type: 'Herb',
+    colors: { foliage: '#6B8E23' },
     growthStages: {
-      'seed': { height: 0.05, foliageRadius: 0.05, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.15, foliageRadius: 0.1, trunkHeight: 0.08, trunkRadius: 0.03, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.4, foliageRadius: 0.25, trunkHeight: 0.2, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.5, foliageRadius: 0.3, trunkHeight: 0.25, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'mature': { height: 0.6, foliageRadius: 0.35, trunkHeight: 0.3, trunkRadius: 0.06, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#FFD700', fruitCount: 2 },
-    },
+      seed: { height: 0.05, radius: 0.08 },
+      seedling: { height: 0.15, radius: 0.12 },
+      vegetative: { height: 0.4, radius: 0.25 },
+      flowering: { height: 0.6, radius: 0.35 },
+      fruiting: { height: 0.7, radius: 0.4 },
+      mature: { height: 0.8, radius: 0.45 }
+    }
   },
   'lettuce': {
     type: 'Vegetable',
+    colors: { foliage: '#7CB342' },
     growthStages: {
-      'seed': { height: 0.05, foliageRadius: 0.08, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.1, foliageRadius: 0.15, trunkHeight: 0.05, trunkRadius: 0.03, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.25, foliageRadius: 0.35, trunkHeight: 0.1, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'mature': { height: 0.3, foliageRadius: 0.45, trunkHeight: 0.12, trunkRadius: 0.05, color: '#8B4513', foliageColor: '#006400', hasFruit: false },
-    },
+      seed: { height: 0.05, radius: 0.08 },
+      seedling: { height: 0.1, radius: 0.15 },
+      vegetative: { height: 0.25, radius: 0.35 },
+      flowering: { height: 0.4, radius: 0.45 },
+      fruiting: { height: 0.45, radius: 0.5 },
+      mature: { height: 0.5, radius: 0.55 }
+    }
   },
   'pepper': {
     type: 'Vegetable',
+    colors: { foliage: '#4CAF50', fruit: '#FF0000' },
     growthStages: {
-      'seed': { height: 0.08, foliageRadius: 0.08, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.25, foliageRadius: 0.18, trunkHeight: 0.12, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.6, foliageRadius: 0.35, trunkHeight: 0.3, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.8, foliageRadius: 0.45, trunkHeight: 0.4, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'fruiting': { height: 0.9, foliageRadius: 0.5, trunkHeight: 0.45, trunkRadius: 0.1, color: '#5C4033', foliageColor: '#2E8B57', hasFruit: true, fruitColor: '#FF0000', fruitCount: 5 },
-      'mature': { height: 1.0, foliageRadius: 0.55, trunkHeight: 0.5, trunkRadius: 0.1, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#DC143C', fruitCount: 8 },
-    },
-  },
-  'carrot': {
-    type: 'Vegetable',
-    growthStages: {
-      'seed': { height: 0.03, foliageRadius: 0.03, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.1, foliageRadius: 0.08, trunkHeight: 0.05, trunkRadius: 0.03, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.3, foliageRadius: 0.2, trunkHeight: 0.15, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'mature': { height: 0.4, foliageRadius: 0.25, trunkHeight: 0.2, trunkRadius: 0.05, color: '#FF8C00', foliageColor: '#006400', hasFruit: false },
-    },
+      seed: { height: 0.1, radius: 0.1 },
+      seedling: { height: 0.25, radius: 0.2 },
+      vegetative: { height: 0.6, radius: 0.45 },
+      flowering: { height: 0.8, radius: 0.55 },
+      fruiting: { height: 1.0, radius: 0.65 },
+      mature: { height: 1.2, radius: 0.7 }
+    }
   },
   'strawberry': {
     type: 'Fruit',
+    colors: { foliage: '#4CAF50', fruit: '#E53935' },
     growthStages: {
-      'seed': { height: 0.05, foliageRadius: 0.05, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.12, foliageRadius: 0.12, trunkHeight: 0.06, trunkRadius: 0.03, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.2, foliageRadius: 0.3, trunkHeight: 0.1, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.25, foliageRadius: 0.35, trunkHeight: 0.12, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'fruiting': { height: 0.25, foliageRadius: 0.4, trunkHeight: 0.12, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#2E8B57', hasFruit: true, fruitColor: '#FF0000', fruitCount: 3 },
-      'mature': { height: 0.3, foliageRadius: 0.45, trunkHeight: 0.15, trunkRadius: 0.06, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#DC143C', fruitCount: 5 },
-    },
+      seed: { height: 0.05, radius: 0.08 },
+      seedling: { height: 0.1, radius: 0.15 },
+      vegetative: { height: 0.2, radius: 0.35 },
+      flowering: { height: 0.25, radius: 0.45 },
+      fruiting: { height: 0.3, radius: 0.55 },
+      mature: { height: 0.35, radius: 0.6 }
+    }
   },
-  'zucchini': {
+  'corn': {
     type: 'Vegetable',
+    colors: { foliage: '#8BC34A', fruit: '#FFC107' },
     growthStages: {
-      'seed': { height: 0.08, foliageRadius: 0.1, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.2, foliageRadius: 0.2, trunkHeight: 0.1, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.5, foliageRadius: 0.5, trunkHeight: 0.25, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.7, foliageRadius: 0.6, trunkHeight: 0.35, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#FFD700', hasFruit: false },
-      'fruiting': { height: 0.8, foliageRadius: 0.7, trunkHeight: 0.4, trunkRadius: 0.1, color: '#5C4033', foliageColor: '#2E8B57', hasFruit: true, fruitColor: '#228B22', fruitCount: 2 },
-      'mature': { height: 0.9, foliageRadius: 0.8, trunkHeight: 0.45, trunkRadius: 0.12, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#006400', fruitCount: 3 },
-    },
+      seed: { height: 0.1, radius: 0.08 },
+      seedling: { height: 0.3, radius: 0.15 },
+      vegetative: { height: 1.0, radius: 0.35 },
+      flowering: { height: 1.5, radius: 0.4 },
+      fruiting: { height: 2.0, radius: 0.45 },
+      mature: { height: 2.5, radius: 0.5 }
+    }
   },
-  'default': {
-    type: 'Vegetable',
+  'sunflower': {
+    type: 'Flower',
+    colors: { foliage: '#4CAF50', flower: '#FFD700' },
     growthStages: {
-      'seed': { height: 0.1, foliageRadius: 0.1, trunkHeight: 0, trunkRadius: 0, color: '#8B4513', foliageColor: '#8B4513', hasFruit: false },
-      'seedling': { height: 0.3, foliageRadius: 0.2, trunkHeight: 0.15, trunkRadius: 0.05, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'vegetative': { height: 0.6, foliageRadius: 0.35, trunkHeight: 0.3, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#32CD32', hasFruit: false },
-      'flowering': { height: 0.8, foliageRadius: 0.4, trunkHeight: 0.4, trunkRadius: 0.08, color: '#5C4033', foliageColor: '#228B22', hasFruit: false },
-      'fruiting': { height: 0.9, foliageRadius: 0.45, trunkHeight: 0.45, trunkRadius: 0.1, color: '#5C4033', foliageColor: '#2E8B57', hasFruit: true, fruitColor: '#FF6347', fruitCount: 3 },
-      'mature': { height: 1.0, foliageRadius: 0.5, trunkHeight: 0.5, trunkRadius: 0.1, color: '#8B4513', foliageColor: '#006400', hasFruit: true, fruitColor: '#FF4500', fruitCount: 5 },
-    },
+      seed: { height: 0.1, radius: 0.08 },
+      seedling: { height: 0.3, radius: 0.2 },
+      vegetative: { height: 0.8, radius: 0.4 },
+      flowering: { height: 1.2, radius: 0.5 },
+      fruiting: { height: 1.5, radius: 0.55 },
+      mature: { height: 1.8, radius: 0.6 }
+    }
   },
-};
-
-// Helper function to map plant names to model types
-function getModelTypeFromPlantName(plantName: string): string {
-  const lowerName = plantName.toLowerCase();
-  
-  const modelMap: Record<string, string> = {
-    'tomato': 'tomato',
-    'pepper': 'pepper',
-    'lettuce': 'lettuce',
-    'basil': 'basil',
-    'strawberry': 'strawberry',
-    'carrot': 'default',
-    'zucchini': 'default',
-    'corn': 'default',
-    'sunflower': 'default',
-    'rose': 'default',
-  };
-  
-  for (const [key, value] of Object.entries(modelMap)) {
-    if (lowerName.includes(key)) {
-      return value;
+  'rose': {
+    type: 'Flower',
+    colors: { foliage: '#2E7D32', flower: '#E91E63' },
+    growthStages: {
+      seed: { height: 0.05, radius: 0.08 },
+      seedling: { height: 0.15, radius: 0.15 },
+      vegetative: { height: 0.4, radius: 0.35 },
+      flowering: { height: 0.6, radius: 0.45 },
+      fruiting: { height: 0.7, radius: 0.5 },
+      mature: { height: 0.8, radius: 0.55 }
     }
   }
+};
+
+// Helper function to get model key from plant name
+function getModelKeyFromName(plantName: string): string {
+  const lowerName = plantName.toLowerCase();
+  if (lowerName.includes('tomato')) return 'tomato';
+  if (lowerName.includes('basil')) return 'basil';
+  if (lowerName.includes('lettuce')) return 'lettuce';
+  if (lowerName.includes('pepper')) return 'pepper';
+  if (lowerName.includes('strawberry')) return 'strawberry';
+  if (lowerName.includes('corn')) return 'corn';
+  if (lowerName.includes('sunflower')) return 'sunflower';
+  if (lowerName.includes('rose')) return 'rose';
+  return 'tomato'; // Default fallback
+}
+
+// Helper function to get growth stage scale factor
+export function getGrowthStageScale(growthStage: string): number {
+  const scales: Record<string, number> = {
+    'seed': 0.1,
+    'seedling': 0.3,
+    'vegetative': 0.6,
+    'flowering': 0.8,
+    'fruiting': 1.0,
+    'mature': 1.2
+  };
+  return scales[growthStage] || 1.0;
+}
+
+// Helper function to get growth stage color
+export function getGrowthStageColor(growthStage: string, baseColor: string): string {
+  const colorMix: Record<string, number> = {
+    'seed': 0.3,
+    'seedling': 0.5,
+    'vegetative': 0.7,
+    'flowering': 0.85,
+    'fruiting': 1.0,
+    'mature': 1.0
+  };
   
-  return 'default';
+  const factor = colorMix[growthStage] || 1.0;
+  // Simple color lightening/darkening based on stage
+  return baseColor; // For now, return base color (can be enhanced)
 }
 
-// Get plant model config by plant name (case-insensitive)
-export function getPlantModel(plantName: string, customModelType?: string): PlantModelConfig {
-  // Use custom model type if provided
-  const modelKey = customModelType || getModelTypeFromPlantName(plantName);
-  
-  // Return the model config or default
-  return plantModels[modelKey] || plantModels['default'];
-}
-
-// Plant Model Component
-interface PlantModelProps {
-  plantName: string;
-  growthStage: string;
-  customModelType?: string;  // Override default model type
-  customColor?: string;       // Override default foliage color
-  onClick?: () => void;
-}
-
+// Simple procedural plant model
 export function PlantModel({ 
   plantName, 
   growthStage, 
-  customModelType, 
+  customModelType,
   customColor,
   onClick 
-}: PlantModelProps) {
-  const groupRef = useRef<THREE.Group>(null);
+}: { 
+  plantName: string; 
+  growthStage: string; 
+  customModelType?: string;
+  customColor?: string;
+  onClick?: () => void;
+}) {
+  const groupRef = useRef<Group>(null);
   const [hovered, setHovered] = useState(false);
   
-  // Get the plant model configuration
-  const config = getPlantModel(plantName, customModelType);
-  const stageKey = growthStage?.toLowerCase() || 'vegetative';
-  const stageConfig = config.growthStages[stageKey] || config.growthStages['vegetative'] || plantModels['default'].growthStages['vegetative'];
+  // Get plant configuration
+  const modelKey = customModelType || getModelKeyFromName(plantName);
+  const config = plantModels[modelKey] || plantModels['tomato'];
+  const stageConfig = config.growthStages[growthStage as keyof typeof config.growthStages] || config.growthStages.vegetative;
   
-  const height = stageConfig.height;
-  const foliageRadius = stageConfig.foliageRadius;
-  const trunkHeight = stageConfig.trunkHeight;
-  const trunkRadius = stageConfig.trunkRadius;
-  const color = stageConfig.color;
-  // Use custom color if provided, otherwise use stage default
-  const foliageColor = customColor || stageConfig.foliageColor;
-  const hasFruit = stageConfig.hasFruit;
-  const fruitColor = stageConfig.fruitColor || '#FF6347';
-  const fruitCount = stageConfig.fruitCount || 3;
+  // Colors
+  const foliageColor = customColor || config.colors.foliage;
+  const fruitColor = config.colors.fruit || '#FF5722';
+  const flowerColor = config.colors.flower || '#FFC107';
   
-  // Debug logging
-  console.log(`🌿 Rendering PlantModel: ${plantName}, stage: ${growthStage}, model: ${customModelType || 'auto'}, color: ${foliageColor}`);
+  // Scale factor based on growth stage
+  const scale = getGrowthStageScale(growthStage);
   
-  // Gentle swaying animation
-  useFrame((state) => {
-    if (groupRef.current && growthStage !== 'seed' && growthStage !== 'seedling') {
-      groupRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 0.5) * 0.03;
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.01;
+  // Gentle sway animation for mature plants
+  useFrame(({ clock }) => {
+    if (groupRef.current && (growthStage === 'fruiting' || growthStage === 'mature')) {
+      const sway = Math.sin(clock.getElapsedTime() * 1.5) * 0.02;
+      groupRef.current.rotation.z = sway;
     }
   });
   
   return (
-    <group
+    <group 
       ref={groupRef}
+      position={[0, stageConfig.height / 2, 0]}
+      scale={[scale, scale, scale]}
       onClick={onClick}
       onPointerOver={() => setHovered(true)}
       onPointerOut={() => setHovered(false)}
     >
-      {/* Trunk/Stem */}
-      {trunkHeight > 0 && (
-        <Cylinder
-          args={[trunkRadius, trunkRadius * 1.2, trunkHeight]}
-          position={[0, -trunkHeight / 2, 0]}
-          castShadow
-        >
-          <meshStandardMaterial color={color} roughness={0.6} />
-        </Cylinder>
+      {/* Stem */}
+      <mesh position={[0, -stageConfig.height / 2 + 0.1, 0]}>
+        <cylinderGeometry args={[0.05, 0.08, stageConfig.height, 6]} />
+        <meshStandardMaterial color="#5D4037" roughness={0.7} />
+      </mesh>
+      
+      {/* Foliage (main plant body) */}
+      <mesh position={[0, stageConfig.height * 0.3, 0]}>
+        <sphereGeometry args={[stageConfig.radius * 0.8, 16, 16]} />
+        <meshStandardMaterial 
+          color={foliageColor} 
+          roughness={0.4} 
+          emissive={hovered ? '#333333' : '#000000'}
+          emissiveIntensity={hovered ? 0.3 : 0}
+        />
+      </mesh>
+      
+      {/* Leaves */}
+      {['left', 'right', 'front', 'back'].map((side, index) => {
+        const xOffset = side === 'left' ? -0.3 : side === 'right' ? 0.3 : side === 'front' ? 0 : 0;
+        const zOffset = side === 'front' ? 0.3 : side === 'back' ? -0.3 : 0;
+        const yPos = stageConfig.height * 0.5;
+        
+        return (
+          <mesh key={index} position={[xOffset, yPos, zOffset]} rotation={[0.5, index * Math.PI / 2, 0.3]}>
+            <coneGeometry args={[0.2, 0.4, 8]} />
+            <meshStandardMaterial color={foliageColor} roughness={0.5} />
+          </mesh>
+        );
+      })}
+      
+      {/* Fruits (if in fruiting stage) */}
+      {growthStage === 'fruiting' && (
+        <>
+          {[1, 2, 3].map((i) => (
+            <mesh key={i} position={[0.2 * i, stageConfig.height * 0.2, 0.2 * i]}>
+              <sphereGeometry args={[0.12, 16, 16]} />
+              <meshStandardMaterial color={fruitColor} roughness={0.3} emissive="#FF0000" emissiveIntensity={0.2} />
+            </mesh>
+          ))}
+          {[1, 2].map((i) => (
+            <mesh key={`fruit-${i + 3}`} position={[-0.2 * i, stageConfig.height * 0.15, -0.15 * i]}>
+              <sphereGeometry args={[0.1, 16, 16]} />
+              <meshStandardMaterial color={fruitColor} roughness={0.3} />
+            </mesh>
+          ))}
+        </>
       )}
       
-      {/* Main foliage */}
-      <group position={[0, trunkHeight, 0]}>
-        {/* Bottom foliage layer */}
-        <Sphere args={[foliageRadius * 0.8, 16, 16]} position={[0, height * 0.2, 0]}>
-          <meshStandardMaterial color={foliageColor} roughness={0.4} />
-        </Sphere>
-        
-        {/* Middle foliage layer */}
-        <Sphere args={[foliageRadius * 0.6, 16, 16]} position={[0, height * 0.5, 0]}>
-          <meshStandardMaterial color={foliageColor} roughness={0.4} />
-        </Sphere>
-        
-        {/* Top foliage layer */}
-        <Sphere args={[foliageRadius * 0.4, 16, 16]} position={[0, height * 0.8, 0]}>
-          <meshStandardMaterial color={foliageColor} roughness={0.4} />
-        </Sphere>
-        
-        {/* Fruits */}
-        {hasFruit && (
-          <group>
-            {[...Array(fruitCount)].map((_, i) => {
-              const angle = (i / fruitCount) * Math.PI * 2;
-              const radius = foliageRadius * 0.7;
-              const x = Math.cos(angle) * radius;
-              const z = Math.sin(angle) * radius;
-              const yOffset = height * 0.4 + (i * 0.05);
-              
-              return (
-                <Sphere
-                  key={i}
-                  args={[0.12, 16, 16]}
-                  position={[x, yOffset, z]}
-                >
-                  <meshStandardMaterial 
-                    color={fruitColor} 
-                    emissive={fruitColor}
-                    emissiveIntensity={0.2}
-                    roughness={0.3}
-                    metalness={0.1}
-                  />
-                </Sphere>
-              );
-            })}
-          </group>
-        )}
-      </group>
+      {/* Flowers (if in flowering stage) */}
+      {growthStage === 'flowering' && (
+        <>
+          {[1, 2, 3, 4].map((i) => (
+            <mesh key={`flower-${i}`} position={[Math.sin(i) * 0.25, stageConfig.height * 0.6, Math.cos(i) * 0.25]}>
+              <sphereGeometry args={[0.08, 8, 8]} />
+              <meshStandardMaterial color={flowerColor} roughness={0.2} emissive="#FFD700" emissiveIntensity={0.3} />
+            </mesh>
+          ))}
+        </>
+      )}
       
-      {/* Hover info */}
+      {/* Hover tooltip */}
       {hovered && (
-        <Html distanceFactor={10}>
-          <div className="bg-black/80 text-white text-xs rounded px-2 py-1 whitespace-nowrap z-50">
-            🌱 {plantName}
-            <br />
-            Stage: {growthStage}
+        <Html position={[0, stageConfig.height + 0.3, 0]} center>
+          <div className="bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap pointer-events-none z-50">
+            {plantName} - {growthStage}
           </div>
         </Html>
       )}
     </group>
   );
 }
+
+// Export a simple fruit/berry model for strawberries, etc.
+export function BerryBush({ 
+  color = '#E53935', 
+  size = 0.15, 
+  position = [0, 0, 0] 
+}: { 
+  color?: string; 
+  size?: number; 
+  position?: [number, number, number];
+}) {
+  return (
+    <mesh position={position}>
+      <sphereGeometry args={[size, 16, 16]} />
+      <meshStandardMaterial color={color} roughness={0.3} emissive={color} emissiveIntensity={0.2} />
+    </mesh>
+  );
+}
+
+// Export a utility to get all available plant models
+export function getAvailablePlantModels() {
+  return Object.keys(plantModels).map(key => ({
+    id: key,
+    name: key.charAt(0).toUpperCase() + key.slice(1),
+    type: plantModels[key].type,
+    colors: plantModels[key].colors
+  }));
+}
+
+// Export the plant models configuration for use elsewhere
+export { getModelKeyFromName };

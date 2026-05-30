@@ -417,7 +417,6 @@ export const modelTypeEnum = pgEnum('threed_model_type', [
   'procedural', 
   'gltf', 
   'glb', 
-  'fbx',
   'usdz', 
   'obj', 
   'herb-generic',
@@ -532,11 +531,6 @@ export const threedModels = pgTable('threed_models', {
   // Animation support
   animations: jsonb('animations').default([]), // ['idle', 'sway', 'grow', 'flower']
   defaultAnimation: varchar('default_animation', { length: 50 }),
-
-  // Update threedModels table to track if it has external files
-  hasExternalFiles: boolean('has_external_files').default(false),
-  textureCount: integer('texture_count').default(0),
-  mainModelFileId: integer('main_model_file_id'), // Reference to the main GLB/GLTF file in threedModelFiles
   
   // Model metadata
   isActive: boolean('is_active').default(true),
@@ -1012,35 +1006,4 @@ export type ThreedFarmbotLog = typeof threedFarmbotLogs.$inferSelect;
 // ============================================
 // ## Schema Updated 2026-05-30
 // ## Added GLTF model support and automated watering schedules
-// ============================================
-
-// ============================================
-// 1c. threed_model_files - Associated files for 3D models (NEW)
-// ============================================
-export const threedModelFiles = pgTable('threed_model_files', {
-  id: serial('id').primaryKey(),
-  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'cascade' }),
-  
-  // File information
-  fileName: varchar('file_name', { length: 255 }).notNull(),
-  fileType: varchar('file_type', { length: 50 }).notNull(), // 'model', 'texture', 'binary', 'other'
-  textureType: varchar('texture_type', { length: 50 }), // 'baseColor', 'normalMap', 'roughness', 'metallic', 'emissive', 'occlusion'
-  filePath: varchar('file_path', { length: 500 }).notNull(),
-  fileSize: integer('file_size'),
-  
-  // For GLTF binary
-  isBinaryBuffer: boolean('is_binary_buffer').default(false),
-  
-  // Order in which files should be loaded
-  loadOrder: integer('load_order').default(0),
-  
-  createdAt: timestamp('created_at').defaultNow(),
-}, (table) => ({
-  modelIdIdx: index('idx_threed_model_files_model_id').on(table.modelId),
-  fileTypeIdx: index('idx_threed_model_files_type').on(table.fileType),
-}));
-
-// ============================================
-// ## Schema Updated 2026-05-30
-// ## Added model files, so models can have multiple files
 // ============================================

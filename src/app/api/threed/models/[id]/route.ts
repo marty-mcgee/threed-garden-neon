@@ -1,19 +1,20 @@
 // src/app/api/threed/models/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedModels, threedPlants } from '@/lib/auth/schema';
-import { eq, and } from 'drizzle-orm';
+import { threedModels, threedPlants, threedModelFiles } from '@/lib/auth/schema';
+import { eq } from 'drizzle-orm';
 import { del } from '@vercel/blob';
 
-// GET /api/threed/models/[id] - Get a specific model
+// GET /api/threed/models/[id] - Get a specific model with all its files
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const modelId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(modelId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid model ID' },
         { status: 400 }
@@ -36,6 +37,8 @@ export async function GET(
       lodLevels: threedModels.lodLevels,
       animations: threedModels.animations,
       defaultAnimation: threedModels.defaultAnimation,
+      hasExternalFiles: threedModels.hasExternalFiles,
+      textureCount: threedModels.textureCount,
       isActive: threedModels.isActive,
       isDefault: threedModels.isDefault,
       metadata: threedModels.metadata,
@@ -46,12 +49,11 @@ export async function GET(
         commonName: threedPlants.commonName,
         scientificName: threedPlants.scientificName,
         plantId: threedPlants.plantId,
-        modelType: threedPlants.modelType,
       }
     })
     .from(threedModels)
     .leftJoin(threedPlants, eq(threedModels.plantId, threedPlants.id))
-    .where(eq(threedModels.id, id))
+    .where(eq(threedModels.id, modelId))
     .limit(1);
 
     if (!model) {
@@ -61,9 +63,21 @@ export async function GET(
       );
     }
 
+    // Get associated files
+    const files = await db.select()
+      .from(threedModelFiles)
+      .where(eq(threedModelFiles.modelId, modelId))
+      .orderBy(threedModelFiles.loadOrder);
+
     return NextResponse.json({
       success: true,
-      data: model,
+      data: {
+        ...model,
+        files,
+        mainModelFile: files.find(f => f.fileType === 'model'),
+        textures: files.filter(f => f.fileType === 'texture'),
+        binaries: files.filter(f => f.fileType === 'binary'),
+      },
     });
   } catch (error) {
     console.error('Error fetching model:', error);
@@ -77,12 +91,13 @@ export async function GET(
 // PUT /api/threed/models/[id] - Update a model
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const modelId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(modelId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid model ID' },
         { status: 400 }
@@ -97,19 +112,19 @@ export async function PUT(
       offsetX,
       offsetY,
       offsetZ,
+      isDefault,
       hasLOD,
       lodLevels,
       animations,
       defaultAnimation,
       isActive,
-      isDefault,
       metadata,
     } = body;
 
     // Check if model exists
     const [existingModel] = await db.select()
       .from(threedModels)
-      .where(eq(threedModels.id, id))
+      .where(eq(threedModels.id, modelId))
       .limit(1);
 
     if (!existingModel) {
@@ -144,7 +159,7 @@ export async function PUT(
         metadata: metadata || existingModel.metadata,
         updatedAt: new Date(),
       })
-      .where(eq(threedModels.id, id))
+      .where(eq(threedModels.id, modelId))
       .returning();
 
     // Update plant reference if this is the default model
@@ -187,12 +202,13 @@ export async function PUT(
 // DELETE /api/threed/models/[id] - Delete a specific model
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = parseInt(params.id);
+    const { id } = await params;
+    const modelId = parseInt(id);
     
-    if (isNaN(id)) {
+    if (isNaN(modelId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid model ID' },
         { status: 400 }
@@ -202,7 +218,7 @@ export async function DELETE(
     // Get model info first
     const [model] = await db.select()
       .from(threedModels)
-      .where(eq(threedModels.id, id))
+      .where(eq(threedModels.id, modelId))
       .limit(1);
 
     if (!model) {
@@ -212,9 +228,37 @@ export async function DELETE(
       );
     }
 
-    // Check if this is the default model for its plant
+    // Get all associated files
+    const files = await db.select()
+      .from(threedModelFiles)
+      .where(eq(threedModelFiles.modelId, modelId));
+
+    // Delete all files from Vercel Blob
+    for (const file of files) {
+      try {
+        await del(file.filePath);
+      } catch (blobError) {
+        console.warn(`Failed to delete blob for file ${file.id}:`, blobError);
+      }
+    }
+
+    // Delete model files from database
+    await db.delete(threedModelFiles)
+      .where(eq(threedModelFiles.modelId, modelId));
+
+    // Delete main model file from Vercel Blob
+    try {
+      await del(model.filePath);
+    } catch (blobError) {
+      console.warn(`Failed to delete blob for model ${modelId}:`, blobError);
+    }
+
+    // Delete model from database
+    await db.delete(threedModels)
+      .where(eq(threedModels.id, modelId));
+
+    // Reset plant's model if this was the default
     if (model.isDefault) {
-      // Reset the plant's model to procedural
       await db.update(threedPlants)
         .set({
           modelType: 'procedural',
@@ -225,17 +269,6 @@ export async function DELETE(
         })
         .where(eq(threedPlants.id, model.plantId));
     }
-
-    // Delete file from storage
-    try {
-      await del(model.filePath);
-    } catch (blobError) {
-      console.warn(`Failed to delete blob for model ${id}:`, blobError);
-    }
-
-    // Delete from database
-    await db.delete(threedModels)
-      .where(eq(threedModels.id, id));
 
     return NextResponse.json({
       success: true,

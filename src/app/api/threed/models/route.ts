@@ -1,7 +1,7 @@
 // src/app/api/threed/models/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedModels, threedPlants } from '@/lib/auth/schema';
+import { threedModels, threedPlants, threedModelFiles } from '@/lib/auth/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { put, del } from '@vercel/blob';
 
@@ -31,6 +31,8 @@ export async function GET(request: NextRequest) {
       lodLevels: threedModels.lodLevels,
       animations: threedModels.animations,
       defaultAnimation: threedModels.defaultAnimation,
+      hasExternalFiles: threedModels.hasExternalFiles,
+      textureCount: threedModels.textureCount,
       isActive: threedModels.isActive,
       isDefault: threedModels.isDefault,
       metadata: threedModels.metadata,
@@ -69,9 +71,25 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .offset(offset);
 
+    // For each model, get associated files
+    const modelsWithFiles = await Promise.all(models.map(async (model) => {
+      const files = await db.select()
+        .from(threedModelFiles)
+        .where(eq(threedModelFiles.modelId, model.id))
+        .orderBy(threedModelFiles.loadOrder);
+      
+      return {
+        ...model,
+        files: files,
+        mainModelFile: files.find(f => f.fileType === 'model'),
+        textures: files.filter(f => f.fileType === 'texture'),
+        binaries: files.filter(f => f.fileType === 'binary'),
+      };
+    }));
+
     return NextResponse.json({
       success: true,
-      data: models,
+      data: modelsWithFiles,
       pagination: {
         limit,
         offset,
@@ -87,20 +105,37 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/threed/models - Upload a new GLTF model
+// POST /api/threed/models - Upload a new GLTF model with multiple files
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const modelFile = formData.get('file') as File;
+    const files = formData.getAll('files') as File[];
     const plantId = formData.get('plantId') as string;
     const modelName = formData.get('modelName') as string;
     const modelType = formData.get('modelType') as string;
     const isDefault = formData.get('isDefault') === 'true';
     
+    // Separate main model file from textures and binaries
+    let mainModelFile: File | null = null;
+    const textureFiles: File[] = [];
+    const binaryFiles: File[] = [];
+    
+    for (const file of files) {
+      const extension = file.name.split('.').pop()?.toLowerCase();
+      
+      if (extension === 'glb' || extension === 'gltf' || extension === 'fbx' || extension === 'obj') {
+        mainModelFile = file;
+      } else if (extension === 'bin') {
+        binaryFiles.push(file);
+      } else if (['jpg', 'jpeg', 'png', 'webp', 'tga', 'bmp'].includes(extension || '')) {
+        textureFiles.push(file);
+      }
+    }
+    
     // Validation
-    if (!modelFile) {
+    if (!mainModelFile) {
       return NextResponse.json(
-        { success: false, error: 'No model file provided' },
+        { success: false, error: 'No main model file (.glb or .gltf) provided' },
         { status: 400 }
       );
     }
@@ -125,23 +160,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file type
-    const validExtensions = ['.gltf', '.glb', '.usdz', '.obj'];
-    const fileExtension = modelFile.name.substring(modelFile.name.lastIndexOf('.'));
+    // Validate main model file type
+    const validExtensions = ['.gltf', '.glb', '.fbx', '.obj'];
+    const fileExtension = mainModelFile.name.substring(mainModelFile.name.lastIndexOf('.'));
     if (!validExtensions.includes(fileExtension)) {
       return NextResponse.json(
-        { success: false, error: `Invalid file type. Allowed: ${validExtensions.join(', ')}` },
+        { success: false, error: `Invalid main model file type. Allowed: ${validExtensions.join(', ')}` },
         { status: 400 }
       );
     }
-
-    // Upload to Vercel Blob (or your storage solution)
-    const timestamp = Date.now();
-    const uniqueFileName = `${timestamp}-${modelFile.name}`;
-    const blob = await put(`models/${uniqueFileName}`, modelFile, {
-      access: 'public',
-      addRandomSuffix: false,
-    });
 
     // Parse additional metadata
     const scale = parseFloat(formData.get('scale') as string) || 1.0;
@@ -183,13 +210,14 @@ export async function POST(request: NextRequest) {
         .where(eq(threedModels.plantId, parseInt(plantId)));
     }
 
-    // Insert model record
+    // Create model record
+    const timestamp = Date.now();
     const [newModel] = await db.insert(threedModels).values({
       plantId: parseInt(plantId),
       modelName,
-      modelType: modelType || fileExtension.substring(1), // Remove dot from extension
-      filePath: blob.url,
-      fileSize: modelFile.size,
+      modelType: modelType || fileExtension.substring(1),
+      filePath: '', // Will update after upload
+      fileSize: mainModelFile.size,
       scale: scale.toString(),
       rotationY: rotationY.toString(),
       offsetX: offsetX.toString(),
@@ -199,19 +227,96 @@ export async function POST(request: NextRequest) {
       lodLevels,
       animations,
       defaultAnimation,
+      hasExternalFiles: textureFiles.length > 0 || binaryFiles.length > 0,
+      textureCount: textureFiles.length,
       isActive: true,
       isDefault,
-      uploadedBy: 'system', // TODO: Get from session
+      uploadedBy: 'system',
       metadata,
       uploadedAt: new Date(),
     }).returning();
+
+    // Upload main model file
+    const mainFileName = `${timestamp}-${mainModelFile.name}`;
+    const mainBlob = await put(`models/${newModel.id}/${mainFileName}`, mainModelFile, {
+      access: 'public',
+      addRandomSuffix: false,
+    });
+
+    // Create model file record for main file
+    const [mainFileRecord] = await db.insert(threedModelFiles).values({
+      modelId: newModel.id,
+      fileName: mainModelFile.name,
+      fileType: 'model',
+      filePath: mainBlob.url,
+      fileSize: mainModelFile.size,
+      loadOrder: 0,
+    }).returning();
+
+    // Update model with main file path
+    await db.update(threedModels)
+      .set({
+        filePath: mainBlob.url,
+        mainModelFileId: mainFileRecord.id,
+      })
+      .where(eq(threedModels.id, newModel.id));
+
+    // Upload texture files
+    const textureUploads = textureFiles.map(async (file, index) => {
+      const textureFileName = `${timestamp}-${file.name}`;
+      const blob = await put(`models/${newModel.id}/textures/${textureFileName}`, file, {
+        access: 'public',
+        addRandomSuffix: false,
+      });
+      
+      // Determine texture type from filename
+      let textureType = 'baseColor';
+      const lowerName = file.name.toLowerCase();
+      if (lowerName.includes('normal')) textureType = 'normalMap';
+      else if (lowerName.includes('roughness')) textureType = 'roughness';
+      else if (lowerName.includes('metallic')) textureType = 'metallic';
+      else if (lowerName.includes('emissive')) textureType = 'emissive';
+      else if (lowerName.includes('occlusion')) textureType = 'occlusion';
+      else if (lowerName.includes('ao')) textureType = 'occlusion';
+      
+      return db.insert(threedModelFiles).values({
+        modelId: newModel.id,
+        fileName: file.name,
+        fileType: 'texture',
+        textureType,
+        filePath: blob.url,
+        fileSize: file.size,
+        loadOrder: index + 1,
+      });
+    });
+    
+    // Upload binary files
+    const binaryUploads = binaryFiles.map(async (file, index) => {
+      const binaryFileName = `${timestamp}-${file.name}`;
+      const blob = await put(`models/${newModel.id}/bin/${binaryFileName}`, file, {
+        access: 'public',
+        addRandomSuffix: false,
+      });
+      
+      return db.insert(threedModelFiles).values({
+        modelId: newModel.id,
+        fileName: file.name,
+        fileType: 'binary',
+        filePath: blob.url,
+        fileSize: file.size,
+        isBinaryBuffer: true,
+        loadOrder: index + 100, // Load after textures
+      });
+    });
+    
+    await Promise.all([...textureUploads, ...binaryUploads]);
 
     // Update the plant's modelType and modelPath if this is the default model
     if (isDefault) {
       await db.update(threedPlants)
         .set({
           modelType: newModel.modelType as any,
-          modelPath: newModel.filePath,
+          modelPath: mainBlob.url,
           isCustomModel: true,
           modelMetadata: {
             scale: newModel.scale,
@@ -223,16 +328,31 @@ export async function POST(request: NextRequest) {
             },
             animations: newModel.animations,
             defaultAnimation: newModel.defaultAnimation,
+            hasExternalFiles: true,
+            textureCount: textureFiles.length,
           },
           updatedAt: new Date(),
         })
         .where(eq(threedPlants.id, parseInt(plantId)));
     }
 
+    // Get all uploaded files for response
+    const allFiles = await db.select()
+      .from(threedModelFiles)
+      .where(eq(threedModelFiles.modelId, newModel.id));
+
     return NextResponse.json({
       success: true,
-      data: newModel,
-      message: 'Model uploaded successfully',
+      data: {
+        ...newModel,
+        files: allFiles,
+        mainModelFile: allFiles.find(f => f.fileType === 'model'),
+        textures: allFiles.filter(f => f.fileType === 'texture'),
+        binaries: allFiles.filter(f => f.fileType === 'binary'),
+        fileCount: 1 + textureFiles.length + binaryFiles.length,
+        textureCount: textureFiles.length,
+      },
+      message: 'Model uploaded successfully with all associated files',
     });
   } catch (error) {
     console.error('Error uploading model:', error);
@@ -261,21 +381,32 @@ export async function DELETE(request: NextRequest) {
 
     for (const id of ids) {
       try {
-        // Get model info first to delete file from storage
+        // Get model info first
         const [model] = await db.select()
           .from(threedModels)
           .where(eq(threedModels.id, parseInt(id)))
           .limit(1);
 
         if (model) {
-          // Delete file from Vercel Blob
-          try {
-            await del(model.filePath);
-          } catch (blobError) {
-            console.warn(`Failed to delete blob for model ${id}:`, blobError);
+          // Get all associated files
+          const files = await db.select()
+            .from(threedModelFiles)
+            .where(eq(threedModelFiles.modelId, parseInt(id)));
+
+          // Delete all files from Vercel Blob
+          for (const file of files) {
+            try {
+              await del(file.filePath);
+            } catch (blobError) {
+              console.warn(`Failed to delete blob for file ${file.id}:`, blobError);
+            }
           }
 
-          // Delete from database
+          // Delete model files from database
+          await db.delete(threedModelFiles)
+            .where(eq(threedModelFiles.modelId, parseInt(id)));
+
+          // Delete model from database
           await db.delete(threedModels)
             .where(eq(threedModels.id, parseInt(id)));
           
@@ -290,7 +421,7 @@ export async function DELETE(request: NextRequest) {
       success: true,
       deleted: deletedModels,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Deleted ${deletedModels.length} models`,
+      message: `Deleted ${deletedModels.length} models and all associated files`,
     });
   } catch (error) {
     console.error('Error deleting models:', error);

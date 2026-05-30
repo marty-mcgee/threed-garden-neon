@@ -1,0 +1,1 @@
+ALTER TYPE "public"."threed_model_type" ADD VALUE 'fbx' BEFORE 'usdz';

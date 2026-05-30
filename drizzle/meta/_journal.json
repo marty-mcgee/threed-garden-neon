@@ -36,6 +36,20 @@
       "when": 1780160076316,
       "tag": "0004_nifty_sphinx",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780174583935,
+      "tag": "0005_cold_omega_sentinel",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780177385780,
+      "tag": "0006_crazy_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }
