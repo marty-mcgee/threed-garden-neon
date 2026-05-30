@@ -14,15 +14,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-// Dynamically import 3D viewer
-const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[500px] bg-muted rounded-xl flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  ),
-});
+// // Dynamically import 3D viewer
+// const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
+//   ssr: false,
+//   loading: () => (
+//     <div className="w-full h-[500px] bg-muted rounded-xl flex items-center justify-center">
+//       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+//     </div>
+//   ),
+// });
+import ThreeDGarden from '@/components/threed/ThreeDGarden'; // Regular import, NOT dynamic
 
 interface DashboardStats {
   plants: { total: number; byType: Record<string, number> };
@@ -254,6 +255,7 @@ export default function ThreeDMasterDashboard() {
               beds={beds}
               plantings={plantings}
               weather={weather}
+              showControls={true}
             />
           ) : (
             <div className="h-[500px] bg-muted flex flex-col items-center justify-center">

@@ -1,124 +1,176 @@
 // src/components/threed/GardenPlant.tsx
 'use client';
 
-import { useLoader } from '@react-three/fiber';
-import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { useRef, useEffect, useState, Suspense } from 'react';
+import { useFrame, useLoader } from '@react-three/fiber';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader';
+import { Html } from '@react-three/drei';
+import * as THREE from 'three';
+
+// Import your procedural plant models as fallback
 import { PlantModel } from './PlantModels';
-import { useEffect, useState } from 'react';
-import { Group } from 'three';
+
+interface FlattenedPlanting {
+  id: number;
+  plantId: number;
+  plantName: string;
+  plantType: string;
+  quantity: number;
+  positionX: number;
+  positionY: number;
+  positionZ: number;
+  growthStage: string;
+  daysToMaturity: number;
+  bedId: number;
+  modelType?: string;
+  modelPath?: string;
+  modelMetadata?: {
+    scale?: number;
+    rotationY?: number;
+    offsets?: { x: number; y: number; z: number };
+  };
+}
 
 interface GardenPlantProps {
-  planting: {
-    id: number;
-    plantId: number;
-    plantName: string;
-    plantType: string;
-    quantity: number;
-    positionX: number;
-    positionY: number;
-    positionZ: number;
-    growthStage: string;
-    daysToMaturity: number;
-    bedId: number;
-    modelType?: string;      // Optional: override default 3D model (procedural, gltf, glb, fbx)
-    modelPath?: string;       // Optional: path to custom model file
-    customColor?: string;    // Optional: override foliage color
-    fruitColor?: string;     // Optional: override fruit color
-    modelMetadata?: {
-      scale?: number;
-      rotationY?: number;
-      offsets?: { x: number; y: number; z: number };
-      animations?: string[];
-      defaultAnimation?: string;
-    };
-  };
+  planting: FlattenedPlanting;
   onClick?: () => void;
 }
 
-// Component for rendering custom 3D models (GLTF/GLB/FBX)
+// Custom Model Loader Component with position support
 function CustomModel({ 
   modelPath, 
   modelType, 
+  position, 
   scale = 1, 
   rotationY = 0,
   offsetY = 0,
+  growthStage = 'vegetative',
   onClick 
 }: { 
   modelPath: string; 
   modelType: string;
+  position: [number, number, number];
   scale?: number;
   rotationY?: number;
   offsetY?: number;
+  growthStage?: string;
   onClick?: () => void;
 }) {
-  const [model, setModel] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [model, setModel] = useState<THREE.Group | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
+  
+  // Growth stage scale multiplier
+  const growthScales: Record<string, number> = {
+    'seed': 0.1,
+    'seedling': 0.3,
+    'vegetative': 0.6,
+    'flowering': 0.8,
+    'fruiting': 1.0,
+    'mature': 1.2
+  };
+  const growthScale = growthScales[growthStage] || 0.6;
   
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-    
     const loadModel = async () => {
       try {
-        if (modelType === 'fbx') {
-          // Load FBX model
+        let loadedModel: THREE.Group;
+        
+        if (modelType.toLowerCase() === 'fbx') {
           const loader = new FBXLoader();
-          const fbxModel = await loader.loadAsync(modelPath);
-          setModel(fbxModel);
+          loadedModel = await loader.loadAsync(modelPath);
         } else {
-          // Load GLTF/GLB model
           const loader = new GLTFLoader();
-          const gltfModel = await loader.loadAsync(modelPath);
-          setModel(gltfModel.scene);
+          const gltf = await loader.loadAsync(modelPath);
+          loadedModel = gltf.scene;
         }
+        
+        // Apply transforms
+        loadedModel.scale.setScalar(scale * growthScale);
+        loadedModel.rotation.y = (rotationY * Math.PI) / 180;
+        loadedModel.position.y = offsetY;
+        
+        // Enable shadows
+        loadedModel.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+        
+        setModel(loadedModel);
       } catch (err) {
-        console.error(`Error loading ${modelType} model:`, err);
+        console.error(`Error loading model from ${modelPath}:`, err);
         setError(err.message);
-      } finally {
-        setLoading(false);
       }
     };
     
-    loadModel();
-  }, [modelPath, modelType]);
+    if (modelPath) {
+      loadModel();
+    }
+  }, [modelPath, modelType, scale, growthScale, rotationY, offsetY]);
   
-  if (loading) {
-    return null; // Or return a simple placeholder if desired
-  }
-  
-  if (error || !model) {
-    console.warn(`Failed to load custom model: ${modelPath}`);
-    return null;
-  }
-  
-  // Clone the model to avoid mutations
-  const clonedModel = model.clone();
-  
-  // Apply transforms
-  clonedModel.scale.setScalar(scale);
-  clonedModel.rotation.y = (rotationY * Math.PI) / 180;
-  clonedModel.position.y = offsetY;
-  
-  return <primitive object={clonedModel} onClick={onClick} />;
-}
-
-export function GardenPlant({ planting, onClick }: GardenPlantProps) {
-  // Debug logging
-  console.log(`🌱 Rendering GardenPlant:`, {
-    id: planting.id,
-    name: planting.plantName,
-    quantity: planting.quantity,
-    position: { x: planting.positionX, y: planting.positionY, z: planting.positionZ },
-    bedId: planting.bedId,
-    growthStage: planting.growthStage,
-    modelType: planting.modelType,
-    modelPath: planting.modelPath,
-    customColor: planting.customColor
+  // Gentle sway animation for mature plants
+  useFrame(({ clock }) => {
+    if (groupRef.current && (growthStage === 'fruiting' || growthStage === 'mature')) {
+      const sway = Math.sin(clock.getElapsedTime() * 1.5) * 0.03;
+      groupRef.current.rotation.z = sway;
+    }
   });
   
-  // If no position is set, default to (0,0,0) which is the center of the bed
+  if (error) {
+    console.warn(`Failed to load custom model, using fallback: ${error}`);
+    // Fallback to procedural model
+    return (
+      <group position={position}>
+        <PlantModel
+          plantName={planting.plantName}
+          growthStage={growthStage}
+          customColor={undefined}
+          onClick={onClick}
+        />
+      </group>
+    );
+  }
+  
+  if (!model) {
+    // Show loading placeholder
+    return (
+      <group position={position}>
+        <mesh>
+          <boxGeometry args={[0.5, 0.5, 0.5]} />
+          <meshStandardMaterial color="#888888" transparent opacity={0.5} />
+        </mesh>
+      </group>
+    );
+  }
+  
+  return (
+    <group 
+      ref={groupRef}
+      position={position}
+      onClick={onClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      <primitive object={model} />
+      {hovered && (
+        <Html position={[0, 1.5, 0]} center>
+          <div className="bg-black/80 text-white px-3 py-1 rounded-lg text-xs whitespace-nowrap shadow-lg z-50">
+            🌱 {planting.plantName} - {growthStage}
+            {modelType && <span className="ml-1 text-blue-300">({modelType.toUpperCase()})</span>}
+          </div>
+        </Html>
+      )}
+    </group>
+  );
+}
+
+// Main GardenPlant Component
+export function GardenPlant({ planting, onClick }: GardenPlantProps) {
+  // Parse position - ensure we have numbers
   const posX = planting.positionX ?? 0;
   const posY = planting.positionY ?? 0;
   const posZ = planting.positionZ ?? 0;
@@ -132,91 +184,93 @@ export function GardenPlant({ planting, onClick }: GardenPlantProps) {
     ['gltf', 'glb', 'fbx'].includes(planting.modelType.toLowerCase()) && 
     planting.modelPath;
   
-  // Get model metadata
+  // Get custom model properties
   const modelScale = planting.modelMetadata?.scale || 1;
   const modelRotation = planting.modelMetadata?.rotationY || 0;
   const modelOffsetY = planting.modelMetadata?.offsets?.y || 0;
   
+  // Debug logging
+  console.log(`🌱 Rendering plant: ${planting.plantName}`, {
+    id: planting.id,
+    position: { x: posX, y: posY, z: posZ },
+    quantity: planting.quantity,
+    growthStage: planting.growthStage,
+    hasCustomModel,
+    modelType: planting.modelType,
+    modelPath: planting.modelPath
+  });
+  
+  // If using custom model
+  if (hasCustomModel) {
+    // For multiple plants, we need to position them within the bed
+    if (planting.quantity > 1) {
+      return (
+        <group position={[posX, posY, posZ]}>
+          {Array.from({ length: planting.quantity }).map((_, i) => {
+            const xOffset = (i * spacing) - offset;
+            return (
+              <CustomModel
+                key={`${planting.id}-${planting.plantId}-${i}`}
+                modelPath={planting.modelPath!}
+                modelType={planting.modelType!.toLowerCase()}
+                position={[xOffset, modelOffsetY, 0]}
+                scale={modelScale}
+                rotationY={modelRotation}
+                growthStage={planting.growthStage}
+                onClick={onClick}
+              />
+            );
+          })}
+        </group>
+      );
+    }
+    
+    // Single plant with custom model at exact bed position
+    return (
+      <CustomModel
+        key={`${planting.id}-${planting.plantId}`}
+        modelPath={planting.modelPath!}
+        modelType={planting.modelType!.toLowerCase()}
+        position={[posX, posY + modelOffsetY, posZ]}
+        scale={modelScale}
+        rotationY={modelRotation}
+        growthStage={planting.growthStage}
+        onClick={onClick}
+      />
+    );
+  }
+  
+  // Fallback to procedural plant models
+  // For multiple plants, distribute them within the bed
+  if (planting.quantity > 1) {
+    return (
+      <group position={[posX, posY, posZ]}>
+        {Array.from({ length: planting.quantity }).map((_, i) => {
+          const xOffset = (i * spacing) - offset;
+          return (
+            <group key={`${planting.id}-${i}`} position={[xOffset, 0, 0]}>
+              <PlantModel
+                plantName={planting.plantName}
+                growthStage={planting.growthStage}
+                customColor={undefined}
+                onClick={onClick}
+              />
+            </group>
+          );
+        })}
+      </group>
+    );
+  }
+  
+  // Single plant with procedural model
   return (
     <group position={[posX, posY, posZ]}>
-      {Array.from({ length: planting.quantity }).map((_, i) => {
-        const xOffset = (i * spacing) - offset;
-        
-        // If using custom model and it's a single plant, render the custom model
-        if (hasCustomModel && planting.quantity === 1) {
-          return (
-            <CustomModel
-              key={`${planting.id}-${i}`}
-              modelPath={planting.modelPath!}
-              modelType={planting.modelType!.toLowerCase()}
-              scale={modelScale}
-              rotationY={modelRotation}
-              offsetY={modelOffsetY}
-              onClick={onClick}
-            />
-          );
-        }
-        
-        // For multiple plants or fallback, use the procedural PlantModel
-        // This ensures consistent rendering when quantity > 1
-        return (
-          <group 
-            key={`${planting.id}-${i}`}
-            position={[xOffset, 0, 0]}
-          >
-            <PlantModel
-              plantName={planting.plantName}
-              growthStage={planting.growthStage}
-              customModelType={planting.modelType}
-              customColor={planting.customColor}
-              onClick={onClick}
-            />
-          </group>
-        );
-      })}
+      <PlantModel
+        plantName={planting.plantName}
+        growthStage={planting.growthStage}
+        customColor={undefined}
+        onClick={onClick}
+      />
     </group>
   );
-}
-
-// Optional: Export a standalone FBX plant component for use elsewhere
-export function FBXPlant({ 
-  url, 
-  position = [0, 0, 0], 
-  scale = 1, 
-  rotationY = 0,
-  onClick 
-}: { 
-  url: string; 
-  position?: [number, number, number]; 
-  scale?: number; 
-  rotationY?: number;
-  onClick?: () => void;
-}) {
-  const [model, setModel] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    const loader = new FBXLoader();
-    loader.load(
-      url,
-      (fbxModel) => {
-        setModel(fbxModel);
-        setLoading(false);
-      },
-      undefined,
-      (error) => {
-        console.error('Error loading FBX:', error);
-        setLoading(false);
-      }
-    );
-  }, [url]);
-  
-  if (loading) return null;
-  if (!model) return null;
-  
-  const clonedModel = model.clone();
-  clonedModel.scale.setScalar(scale);
-  clonedModel.rotation.y = (rotationY * Math.PI) / 180;
-  
-  return <primitive object={clonedModel} position={position} onClick={onClick} />;
 }

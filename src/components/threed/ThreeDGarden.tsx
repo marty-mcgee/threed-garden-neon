@@ -1,7 +1,7 @@
-// src/components/threed/ThreeDGarden.tsx
+// src/components/threed/ThreeDGarden.tsx (Enhanced)
 'use client';
 
-import React, { Suspense, useRef, useState, useEffect, useCallback } from 'react';
+import React, { Suspense, useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -20,11 +20,14 @@ import {
   Cylinder,
   Cone,
   Sphere,
+  Sky,
+  Stars,
+  useTexture
 } from '@react-three/drei';
-import { EffectComposer, Bloom, DepthOfField, Vignette } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, Vignette, DepthOfField } from '@react-three/postprocessing';
 import * as THREE from 'three';
 
-// Import our custom components
+// Import your custom components
 import { GardenBed } from './GardenBed';
 import { GardenPlant } from './GardenPlant';
 import { WeatherEffects } from './WeatherEffects';
@@ -91,6 +94,10 @@ interface FlattenedPlanting {
   growthStage: string;
   daysToMaturity: number;
   bedId: number;
+  // Add model data from the plant record
+  modelType: string,
+  modelPath: string,
+  modelMetadata: string,
 }
 
 interface ThreeDGardenProps {
@@ -119,174 +126,261 @@ function flattenPlanting(rawPlanting: RawPlantingData): FlattenedPlanting {
     growthStage: rawPlanting.planting.growthStage || 'vegetative',
     daysToMaturity: rawPlanting.plant?.daysToMaturity || 60,
     bedId: rawPlanting.planting.bedId,
+    // Add model data from the plant record
+    modelType: rawPlanting.plant?.modelType,
+    modelPath: rawPlanting.plant?.modelPath,
+    modelMetadata: rawPlanting.plant?.modelMetadata,
   };
 }
 
-// Decorative Tree Component
+// Enhanced Tree Component with better shading
 function Tree({ x, z, scale = 1 }: { x: number; z: number; scale?: number }) {
   const groupRef = useRef<THREE.Group>(null);
   
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.1) * 0.1;
+      // Gentle sway
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.1) * 0.05;
     }
   });
   
   return (
     <group ref={groupRef} position={[x, 0, z]} scale={[scale, scale, scale]}>
+      {/* Shadow catcher */}
+      <Circle args={[0.8, 8]} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]}>
+        <meshStandardMaterial color="#000000" transparent opacity={0.3} />
+      </Circle>
       {/* Trunk */}
-      <Cylinder args={[0.3, 0.4, 1.2]} position={[0, 0.6, 0]}>
-        <meshStandardMaterial color="#8B4513" roughness={0.7} />
+      <Cylinder args={[0.35, 0.45, 1.3]} position={[0, 0.65, 0]}>
+        <meshStandardMaterial color="#6B4226" roughness={0.7} metalness={0.1} />
       </Cylinder>
-      {/* Foliage layers */}
-      <Cone args={[0.8, 1.0, 8]} position={[0, 1.3, 0]}>
-        <meshStandardMaterial color="#2E7D32" roughness={0.4} />
+      {/* Foliage layers with better colors */}
+      <Cone args={[0.9, 1.1, 8]} position={[0, 1.4, 0]}>
+        <meshStandardMaterial color="#2E7D32" roughness={0.3} metalness={0.1} />
       </Cone>
-      <Cone args={[0.6, 0.8, 8]} position={[0, 1.9, 0]}>
-        <meshStandardMaterial color="#388E3C" roughness={0.4} />
+      <Cone args={[0.7, 0.9, 8]} position={[0, 2.0, 0]}>
+        <meshStandardMaterial color="#388E3C" roughness={0.3} metalness={0.1} />
       </Cone>
-      <Cone args={[0.4, 0.6, 8]} position={[0, 2.4, 0]}>
-        <meshStandardMaterial color="#43A047" roughness={0.4} />
+      <Cone args={[0.5, 0.7, 8]} position={[0, 2.6, 0]}>
+        <meshStandardMaterial color="#43A047" roughness={0.3} metalness={0.1} />
       </Cone>
     </group>
   );
 }
 
-// Water Feature Component
+// Enhanced Water Feature with reflections
 function WaterFeature({ x, z, radius = 1.5 }: { x: number; z: number; radius?: number }) {
   const waterRef = useRef<THREE.Mesh>(null);
+  const timeRef = useRef(0);
   
   useFrame((state) => {
     if (waterRef.current) {
+      timeRef.current += 0.02;
       // Gentle water ripple effect
-      waterRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.02;
+      waterRef.current.position.y = Math.sin(state.clock.elapsedTime * 1.5) * 0.03;
+      // Slight scale pulse
+      const scale = 1 + Math.sin(timeRef.current) * 0.02;
+      waterRef.current.scale.set(scale, scale, scale);
     }
   });
   
   return (
-    <group position={[x, -0.05, z]}>
+    <group position={[x, -0.08, z]}>
+      {/* Outer ring */}
+      <Circle args={[radius + 0.1, 32]}>
+        <meshStandardMaterial color="#1E88E5" transparent opacity={0.3} roughness={0.4} />
+      </Circle>
+      {/* Water surface */}
       <Circle args={[radius, 32]}>
         <meshStandardMaterial 
           color="#4FC3F7" 
           transparent 
-          opacity={0.7} 
-          roughness={0.3} 
-          metalness={0.8}
-        />
-      </Circle>
-      <Circle args={[radius * 0.7, 32]} position={[0, 0.02, 0]}>
-        <meshStandardMaterial 
-          color="#29B6F6" 
-          transparent 
-          opacity={0.5} 
+          opacity={0.8} 
           roughness={0.2} 
           metalness={0.9}
+          emissive="#29B6F6"
+          emissiveIntensity={0.1}
+        />
+      </Circle>
+      {/* Inner highlight */}
+      <Circle args={[radius * 0.5, 32]} position={[0, 0.02, 0]}>
+        <meshStandardMaterial 
+          color="#B3E5FC" 
+          transparent 
+          opacity={0.6} 
+          roughness={0.1} 
+          metalness={0.95}
         />
       </Circle>
     </group>
   );
 }
 
-// Decorative Flower Component
-function Flower({ x, z, color = "#FF69B4" }: { x: number; z: number; color?: string }) {
+// Enhanced Decorative Flower Component
+function Flower({ x, z, color = "#FF69B4", delay = 0 }: { x: number; z: number; color?: string; delay?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      // Gentle bobbing
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + delay) * 0.03;
+    }
+  });
+  
   return (
-    <group position={[x, 0, z]}>
-      <Cylinder args={[0.05, 0.07, 0.3]} position={[0, 0.15, 0]}>
-        <meshStandardMaterial color="#228B22" />
+    <group ref={groupRef} position={[x, 0, z]}>
+      <Cylinder args={[0.04, 0.06, 0.35]} position={[0, 0.175, 0]}>
+        <meshStandardMaterial color="#2E7D32" roughness={0.6} />
       </Cylinder>
       {[...Array(6)].map((_, i) => {
         const angle = (i / 6) * Math.PI * 2;
-        const rad = 0.15;
+        const rad = 0.18;
         return (
           <Sphere 
             key={i} 
-            args={[0.08, 8, 8]} 
-            position={[Math.cos(angle) * rad, 0.32, Math.sin(angle) * rad]}
+            args={[0.09, 16, 16]} 
+            position={[Math.cos(angle) * rad, 0.38, Math.sin(angle) * rad]}
           >
-            <meshStandardMaterial color={color} roughness={0.2} />
+            <meshStandardMaterial color={color} roughness={0.2} emissive={color} emissiveIntensity={0.1} />
           </Sphere>
         );
       })}
-      <Sphere args={[0.1, 8, 8]} position={[0, 0.32, 0]}>
-        <meshStandardMaterial color="#FFD700" emissive="#FFA500" emissiveIntensity={0.3} />
+      <Sphere args={[0.12, 16, 16]} position={[0, 0.38, 0]}>
+        <meshStandardMaterial color="#FFC107" emissive="#FF9800" emissiveIntensity={0.2} />
       </Sphere>
     </group>
   );
 }
 
-// Garden Ground Component
+// Enhanced Garden Ground Component
 function GardenGround() {
+  // Use texture for ground variation
+  const groundColor = "#4A7A3A";
+  
   return (
     <>
-      {/* Main ground plane with slight elevation variation */}
+      {/* Main ground plane */}
       <Plane 
         args={[50, 50]} 
         rotation={[-Math.PI / 2, 0, 0]} 
-        position={[0, -0.1, 0]}
+        position={[0, -0.15, 0]}
         receiveShadow
       >
-        <meshStandardMaterial color="#4A7A3A" roughness={0.8} metalness={0.1} />
+        <meshStandardMaterial 
+          color={groundColor} 
+          roughness={0.9} 
+          metalness={0.05}
+        />
       </Plane>
       
-      {/* Grid helper for reference */}
+      {/* Enhanced Grid helper */}
       <Grid 
         args={[50, 50]} 
         cellSize={1} 
         cellThickness={0.5} 
         cellColor="#6B8E23"
         sectionSize={5}
-        sectionThickness={1}
+        sectionThickness={1.2}
         sectionColor="#556B2F"
-        position={[0, -0.05, 0]}
+        position={[0, -0.08, 0]}
       />
       
-      {/* Grass patches (sparkles effect) */}
+      {/* Grass patches */}
       <Sparkles 
-        count={500}
-        scale={[50, 1, 50]}
-        size={0.1}
+        count={800}
+        scale={[50, 2, 50]}
+        size={0.08}
         color="#4CAF50"
-        opacity={0.4}
+        opacity={0.5}
+      />
+      
+      {/* Ambient light particles (fireflies/dust) */}
+      <Sparkles 
+        count={300}
+        scale={[40, 8, 40]}
+        size={0.05}
+        color="#FFD700"
+        opacity={0.3}
+        speed={0.5}
       />
     </>
   );
 }
 
-// Garden Scene Component
+// Animated Butterfly Component
+function Butterfly({ startPos, delay = 0 }: { startPos: [number, number, number]; delay?: number }) {
+  const groupRef = useRef<THREE.Group>(null);
+  const progress = useRef(delay);
+  const speed = 0.3;
+  
+  useFrame((state) => {
+    if (groupRef.current) {
+      progress.current += 0.01;
+      // Figure-8 flight pattern
+      const x = Math.sin(progress.current * speed) * 3;
+      const z = Math.cos(progress.current * speed * 0.8) * 2;
+      const y = 1.5 + Math.sin(progress.current * speed * 2) * 0.5;
+      
+      groupRef.current.position.set(startPos[0] + x, startPos[1] + y, startPos[2] + z);
+      groupRef.current.rotation.y = Math.atan2(x, z);
+      
+      // Wing flap
+      const flap = Math.sin(state.clock.elapsedTime * 15) * 0.8;
+      groupRef.current.children.forEach((child, i) => {
+        if (child.isMesh && child.position.x !== 0) {
+          child.rotation.z = flap * (i === 0 ? 1 : -1);
+        }
+      });
+    }
+  });
+  
+  return (
+    <group ref={groupRef} position={startPos}>
+      {/* Left wing */}
+      <mesh position={[-0.15, 0, 0]} rotation={[0, 0, 0.5]}>
+        <coneGeometry args={[0.18, 0.28, 8]} />
+        <meshStandardMaterial color="#FF69B4" emissive="#FF1493" emissiveIntensity={0.2} />
+      </mesh>
+      {/* Right wing */}
+      <mesh position={[0.15, 0, 0]} rotation={[0, 0, -0.5]}>
+        <coneGeometry args={[0.18, 0.28, 8]} />
+        <meshStandardMaterial color="#FF69B4" emissive="#FF1493" emissiveIntensity={0.2} />
+      </mesh>
+      {/* Body */}
+      <mesh>
+        <boxGeometry args={[0.08, 0.18, 0.08]} />
+        <meshStandardMaterial color="#333333" />
+      </mesh>
+    </group>
+  );
+}
+
+// Garden Scene Component (Enhanced)
 function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
-  const [timeOfDay, setTimeOfDay] = useState<'dawn' | 'day' | 'dusk' | 'night'>('day');
+  const [timeOfDay] = useState<'dawn' | 'day' | 'dusk' | 'night'>('day');
   const [ambientIntensity, setAmbientIntensity] = useState(0.5);
-  const [sunPosition, setSunPosition] = useState([10, 20, 5]);
-  const [autoRotate, setAutoRotate] = useState(false);
+  const [sunPosition, setSunPosition] = useState<[number, number, number]>([10, 20, 5]);
   
-  // Flatten all plantings
-  const flattenedPlantings = plantings.map(flattenPlanting);
+  // Flatten all plantings with useMemo for performance
+  const flattenedPlantings = useMemo(() => plantings.map(flattenPlanting), [plantings]);
   
-  // Simulate time of day
+  // Update lighting based on time
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 6) setTimeOfDay('night');
-    else if (hour < 8) setTimeOfDay('dawn');
-    else if (hour < 18) setTimeOfDay('day');
-    else if (hour < 20) setTimeOfDay('dusk');
-    else setTimeOfDay('night');
-    
-    // Adjust lighting based on time
     switch (timeOfDay) {
       case 'dawn':
         setAmbientIntensity(0.3);
-        setSunPosition([5, 5, 10]);
+        setSunPosition([5, 8, 10]);
         break;
       case 'day':
-        setAmbientIntensity(0.5);
-        setSunPosition([10, 20, 5]);
+        setAmbientIntensity(0.55);
+        setSunPosition([12, 22, 5]);
         break;
       case 'dusk':
         setAmbientIntensity(0.3);
-        setSunPosition([-5, 5, 10]);
+        setSunPosition([-5, 8, 10]);
         break;
       case 'night':
-        setAmbientIntensity(0.1);
+        setAmbientIntensity(0.15);
         setSunPosition([0, -10, 0]);
         break;
     }
@@ -294,67 +388,99 @@ function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: T
   
   return (
     <>
-      {/* Fog for depth perception */}
-      <fog attach="fog" args={['#87CEEB', 20, 50]} />
+      {/* Enhanced Fog */}
+      <fog attach="fog" args={['#87CEEB', 25, 60]} />
       
-      {/* Lighting based on time of day */}
+      {/* Sky with sun position */}
+      <Sky 
+        distance={450} 
+        sunPosition={sunPosition}
+        inclination={timeOfDay === 'day' ? 0.6 : 0.2}
+        azimuth={0.2}
+        rayleigh={0.5}
+        mieCoefficient={0.005}
+      />
+      
+      {/* Stars at night */}
+      {timeOfDay === 'night' && <Stars radius={100} depth={50} count={2000} factor={4} fade />}
+      
+      {/* Lighting System */}
       <ambientLight intensity={ambientIntensity} />
+      
+      {/* Main directional light (sun) */}
       <directionalLight
-        position={sunPosition as [number, number, number]}
-        intensity={timeOfDay === 'day' ? 1.2 : 0.4}
+        position={sunPosition}
+        intensity={timeOfDay === 'day' ? 1.3 : 0.5}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
         shadow-camera-far={50}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
-      />
-      <pointLight 
-        position={[0, 5, 0]} 
-        intensity={timeOfDay === 'night' ? 0.5 : 0.1} 
-        color={timeOfDay === 'night' ? '#FFA500' : '#ffffff'}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+        shadow-bias={-0.0001}
       />
       
-      {/* Fill light for shadows */}
+      {/* Fill lights */}
+      <pointLight 
+        position={[0, 8, 0]} 
+        intensity={timeOfDay === 'night' ? 0.6 : 0.15} 
+        color={timeOfDay === 'night' ? '#FFA500' : '#ffffff'}
+      />
+      <pointLight position={[-5, 5, -8]} intensity={0.25} color="#FFD700" />
+      <pointLight position={[8, 4, 6]} intensity={0.2} color="#FFA500" />
+      
+      {/* Hemisphere light for natural bounce */}
       <hemisphereLight 
-        intensity={0.4} 
+        intensity={0.45} 
         color="#87CEEB" 
         groundColor="#4A7A3A" 
       />
       
-      {/* Decorative clouds */}
-      <Clouds material={THREE.MeshBasicMaterial} position={[0, 15, -10]} limit={5}>
-        <Cloud segments={40} bounds={[10, 2, 10]} volume={8} color="white" />
+      {/* Decorative Clouds */}
+      <Clouds material={THREE.MeshBasicMaterial} position={[0, 18, -12]} limit={8}>
+        <Cloud segments={40} bounds={[12, 2, 12]} volume={10} color="#ffffff" opacity={0.7} />
       </Clouds>
       
       {/* Garden Ground */}
       <GardenGround />
       
-      {/* Decorative Trees */}
-      <Tree x={-12} z={-10} scale={1.2} />
-      <Tree x={12} z={-10} scale={1.2} />
-      <Tree x={-10} z={12} scale={1.0} />
-      <Tree x={10} z={12} scale={1.0} />
-      <Tree x={-14} z={8} scale={0.9} />
-      <Tree x={14} z={8} scale={0.9} />
-      <Tree x={0} z={-14} scale={1.1} />
-      <Tree x={0} z={14} scale={1.1} />
+      {/* Decorative Elements - Trees */}
+      <Tree x={-13} z={-11} scale={1.3} />
+      <Tree x={13} z={-11} scale={1.3} />
+      <Tree x={-11} z={13} scale={1.1} />
+      <Tree x={11} z={13} scale={1.1} />
+      <Tree x={-15} z={9} scale={1.0} />
+      <Tree x={15} z={9} scale={1.0} />
+      <Tree x={-2} z={-15} scale={1.2} />
+      <Tree x={2} z={-15} scale={1.2} />
+      <Tree x={0} z={15} scale={1.2} />
+      <Tree x={-8} z={-14} scale={0.9} />
+      <Tree x={8} z={-14} scale={0.9} />
       
-      {/* Water Feature */}
-      <WaterFeature x={-8} z={-8} radius={2.0} />
-      <WaterFeature x={8} z={-8} radius={1.5} />
+      {/* Water Features */}
+      <WaterFeature x={-9} z={-9} radius={2.2} />
+      <WaterFeature x={9} z={-9} radius={1.8} />
+      <WaterFeature x={0} z={-12} radius={1.5} />
       
-      {/* Decorative Flowers */}
-      <Flower x={-6} z={-6} color="#FF69B4" />
-      <Flower x={-5} z={-7} color="#FFD700" />
-      <Flower x={-7} z={-5} color="#FF6347" />
-      <Flower x={6} z={-6} color="#DA70D6" />
-      <Flower x={5} z={-7} color="#FFD700" />
-      <Flower x={7} z={-5} color="#FF69B4" />
-      <Flower x={-6} z={6} color="#FF6347" />
-      <Flower x={6} z={6} color="#DA70D6" />
+      {/* Decorative Flowers - More variety */}
+      <Flower x={-7} z={-7} color="#FF69B4" delay={0} />
+      <Flower x={-6} z={-8} color="#FFD700" delay={0.5} />
+      <Flower x={-8} z={-6} color="#FF6347" delay={1} />
+      <Flower x={7} z={-7} color="#DA70D6" delay={0.3} />
+      <Flower x={6} z={-8} color="#FFD700" delay={0.8} />
+      <Flower x={8} z={-6} color="#FF69B4" delay={1.2} />
+      <Flower x={-7} z={7} color="#FF6347" delay={0.2} />
+      <Flower x={7} z={7} color="#DA70D6" delay={0.7} />
+      <Flower x={-9} z={5} color="#E1BEE7" delay={0.4} />
+      <Flower x={9} z={5} color="#E1BEE7" delay={0.9} />
+      
+      {/* Butterflies for life */}
+      <Butterfly startPos={[-5, 2, -3]} delay={0} />
+      <Butterfly startPos={[4, 1.5, -4]} delay={2} />
+      <Butterfly startPos={[2, 2, 5]} delay={4} />
+      <Butterfly startPos={[-3, 1.8, 4]} delay={1} />
       
       {/* Garden Beds */}
       {beds.map((bed) => (
@@ -375,24 +501,48 @@ function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: T
       ))}
       
       {/* Weather Effects */}
-      {weather && <WeatherEffects weather={weather} />}
-      
-      {/* Floating UI */}
-      <FloatingUI beds={beds} plantings={flattenedPlantings} />
+      {weather && weather.condition && (
+        <WeatherEffects weather={weather} />
+      )}
     </>
   );
 }
 
-// Main Component
+// Main Component (Enhanced)
 export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
   const [showStats, setShowStats] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [autoRotate, setAutoRotate] = useState(false);
+  const [quality, setQuality] = useState<'high' | 'medium' | 'low'>('high');
+  
+  // Performance-based quality adjustment
+  useEffect(() => {
+    const totalObjects = beds.length + plantings.length;
+    if (totalObjects > 150) setQuality('low');
+    else if (totalObjects > 80) setQuality('medium');
+    else setQuality('high');
+  }, [beds.length, plantings.length]);
+  
+  // Calculate DPR based on quality
+  const dpr = useMemo(() => {
+    if (quality === 'low') return 1;
+    if (quality === 'medium') return [1, 1.5];
+    return [1, 2];
+  }, [quality]);
   
   if (!beds.length && !plantings.length) {
+    // [MM]
+    // You can add this to debug positions
+    console.log('Plant positions:', plantings.map(p => ({
+      name: p.plantName,
+      position: [p.positionX, p.positionY, p.positionZ],
+      modelPath: p.modelPath
+    })));
+
     return (
-      <div className="flex flex-col items-center justify-center h-[800px] bg-muted rounded-xl">
+      <div className="flex flex-col items-center justify-center h-[800px] bg-gradient-to-b from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl border">
         <div className="text-center">
+          <div className="text-6xl mb-4">🌱</div>
           <p className="text-muted-foreground mb-2">No garden data available</p>
           <p className="text-sm text-muted-foreground">Add beds and plantings to see your 3D garden</p>
         </div>
@@ -401,34 +551,37 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
   }
   
   return (
-    <div className="relative w-full h-[800px] rounded-xl overflow-hidden border bg-black/5">
+    <div className="relative w-full h-[800px] rounded-xl overflow-hidden border bg-black/5 shadow-xl">
       <Canvas
-        shadows
-        dpr={[1, 2]}
+        shadows={quality !== 'low'}
+        dpr={dpr}
         gl={{
-          antialias: true,
+          antialias: quality !== 'low',
           alpha: false,
           powerPreference: "high-performance"
         }}
+        performance={{ min: 0.5 }}
       >
         <Suspense fallback={null}>
-          <PerspectiveCamera makeDefault position={[12, 10, 15]} fov={50} />
+          <PerspectiveCamera makeDefault position={[14, 12, 16]} fov={50} />
           
           <OrbitControls 
             enablePan={true}
             enableZoom={true}
             enableRotate={true}
-            zoomSpeed={1.2}
+            zoomSpeed={1.0}
             rotateSpeed={0.8}
             panSpeed={0.8}
             autoRotate={autoRotate}
-            autoRotateSpeed={0.5}
+            autoRotateSpeed={0.8}
             maxPolarAngle={Math.PI / 2.2}
             minDistance={5}
-            maxDistance={35}
+            maxDistance={40}
+            enableDamping={true}
+            dampingFactor={0.05}
           />
           
-          <Environment preset="forest" />
+          <Environment preset="forest" background={false} />
           
           <GardenScene 
             beds={beds} 
@@ -438,50 +591,67 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
             onPlantSelect={onPlantSelect}
           />
           
-          <EffectComposer>
-            <Bloom 
-              intensity={0.5} 
-              luminanceThreshold={0.1} 
-              luminanceSmoothing={0.9} 
-            />
-            <Vignette 
-              offset={0.5} 
-              darkness={0.6} 
-            />
-          </EffectComposer>
+          {/* Post-processing effects - only on high quality */}
+          {quality === 'high' && (
+            <EffectComposer>
+              <Bloom 
+                intensity={0.4} 
+                luminanceThreshold={0.2} 
+                luminanceSmoothing={0.9}
+                mipmapBlur
+              />
+              <Vignette 
+                offset={0.3} 
+                darkness={0.5} 
+              />
+            </EffectComposer>
+          )}
           
           {showStats && <R3FStats />}
         </Suspense>
       </Canvas>
       
-      {/* Controls Overlay */}
+      {/* Enhanced Controls Overlay */}
       <div className="absolute bottom-4 right-4 flex gap-2 z-10">
         <button
           onClick={() => setAutoRotate(!autoRotate)}
-          className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
+          className={`px-3 py-1.5 text-white text-xs rounded-lg backdrop-blur-sm transition-all shadow-lg ${
+            autoRotate 
+              ? 'bg-green-600 hover:bg-green-700' 
+              : 'bg-black/50 hover:bg-black/70'
+          }`}
         >
           {autoRotate ? '⏸️ Stop Rotate' : '▶️ Auto Rotate'}
         </button>
         <button
           onClick={() => setShowStats(!showStats)}
-          className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
+          className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm transition-all shadow-lg"
         >
-          {showStats ? 'Hide Stats' : 'Show Stats'}
+          📊 {showStats ? 'Hide Stats' : 'Show Stats'}
         </button>
         <button
           onClick={() => setShowControls(!showControls)}
-          className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm transition-colors"
+          className="px-3 py-1.5 bg-black/50 hover:bg-black/70 text-white text-xs rounded-lg backdrop-blur-sm transition-all shadow-lg"
         >
-          {showControls ? 'Hide Controls' : 'Show Controls'}
+          {showControls ? '🔧 Hide Controls' : '🔧 Show Controls'}
         </button>
       </div>
       
       {/* Instruction Overlay */}
       {showControls && (
-        <div className="absolute top-4 left-4 bg-black/50 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm z-10 space-y-1">
-          <div>🖱️ Drag to rotate | Right-click to pan | Scroll to zoom</div>
-          <div>🌿 Click on plants or beds for details</div>
-          <div>✨ Auto-rotate: {autoRotate ? 'ON' : 'OFF'} (toggle in corner)</div>
+        <div className="absolute top-4 left-4 bg-black/60 text-white text-xs px-4 py-2 rounded-lg backdrop-blur-sm z-10 space-y-1 shadow-lg">
+          <div className="flex gap-3">
+            <span>🖱️ Drag to rotate</span>
+            <span>🖱️ Right-click + drag to pan</span>
+            <span>📜 Scroll to zoom</span>
+          </div>
+          <div className="flex gap-3">
+            <span>🌿 Click plants or beds for details</span>
+            <span>✨ Auto-rotate: {autoRotate ? 'ON' : 'OFF'}</span>
+          </div>
+          <div className="text-xs text-green-300">
+            🌟 {beds.length} beds • {plantings.length} plantings
+          </div>
         </div>
       )}
       

@@ -36,6 +36,7 @@ export function GardenBed({ bed, onClick }: GardenBedProps) {
   
   return (
     <group 
+      key={`bed-${bed.id}`}
       position={[bed.positionX || 0, 0, bed.positionZ || 0]}
       onClick={onClick}
       onPointerOver={() => setHovered(true)}

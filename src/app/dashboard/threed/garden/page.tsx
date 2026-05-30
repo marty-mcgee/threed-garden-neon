@@ -8,15 +8,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Box, Sprout, Sun, Droplets, Thermometer, MapPin, AlertCircle } from 'lucide-react';
 
-// Dynamically import the 3D viewer to avoid SSR issues
-const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-[800px] bg-muted rounded-xl flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-    </div>
-  ),
-});
+// // Dynamically import the 3D viewer to avoid SSR issues
+// const ThreeDGarden = dynamic(() => import('@/components/threed/ThreeDGarden'), {
+//   ssr: false,
+//   loading: () => (
+//     <div className="w-full h-[800px] bg-muted rounded-xl flex items-center justify-center">
+//       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+//     </div>
+//   ),
+// });
+import ThreeDGarden from '@/components/threed/ThreeDGarden'; // Regular import, NOT dynamic
 
 interface GardenBed {
   id: number;
