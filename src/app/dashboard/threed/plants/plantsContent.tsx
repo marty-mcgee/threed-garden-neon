@@ -22,21 +22,51 @@ interface Plant {
   family: string;
   type: string;
   status: string;
+  // Standardized model fields
+  modelType: string;
+  modelPath: string;
+  modelMetadata: {
+    scale?: number;
+    rotationY?: number;
+    offsets?: { x: number; y: number; z: number };
+    animations?: string[];
+    defaultAnimation?: string;
+  };
+  isCustomModel: boolean;
+  // Growth parameters
   growthHabit: string;
   daysToMaturity: number;
   daysToGermination: number;
+  daysToHarvest: number;
   spacingInches: number;
   rowSpacingInches: number;
   plantingDepthInches: number;
   sunlight: string;
   waterNeeds: string;
+  soilType: string;
+  soilPH: string;
+  hardinessZone: string;
+  frostTolerant: boolean;
+  perennial: boolean;
   description: string;
   careInstructions: string;
   harvestInstructions: string;
   imageUrl: string;
+  thumbnailUrl: string;
+  companionPlants: string;
+  avoidPlants: string;
   createdAt: string;
   updatedAt: string;
 }
+
+// Default model metadata
+const defaultModelMetadata = {
+  scale: 1,
+  rotationY: 0,
+  offsets: { x: 0, y: 0, z: 0 },
+  animations: [],
+  defaultAnimation: ''
+};
 
 function PaginationControls({ currentPage, totalPages, totalRecords, pageSize, onPageChange }: { 
   currentPage: number; 
@@ -84,10 +114,51 @@ export default function PlantsContent() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedPlant, setSelectedPlant] = useState<Plant | null>(null);
   const [formData, setFormData] = useState<Partial<Plant>>({
+    // Basic info
+    plantId: '',
+    commonName: '',
+    scientificName: '',
+    variety: '',
+    family: '',
     type: 'Vegetable',
     status: 'active',
+    
+    // Standardized Model fields (NO LEGACY FIELDS)
+    modelType: 'procedural',
+    modelPath: '',
+    modelMetadata: defaultModelMetadata,
+    isCustomModel: false,
+    
+    // Growth parameters
+    growthHabit: '',
+    daysToMaturity: 0,
+    daysToGermination: 0,
+    daysToHarvest: 0,
+    
+    // Spacing
+    spacingInches: 0,
+    rowSpacingInches: 0,
+    plantingDepthInches: 0,
+    
+    // Environmental
     sunlight: 'Full Sun',
     waterNeeds: 'Medium',
+    soilType: '',
+    soilPH: '',
+    hardinessZone: '',
+    frostTolerant: false,
+    perennial: false,
+    
+    // Media
+    imageUrl: '',
+    thumbnailUrl: '',
+    description: '',
+    careInstructions: '',
+    harvestInstructions: '',
+    
+    // Companion planting
+    companionPlants: '',
+    avoidPlants: '',
   });
 
   const fetchPlants = useCallback(async () => {
@@ -149,9 +220,12 @@ export default function PlantsContent() {
 
   const openEditModal = (plant: Plant) => {
     setSelectedPlant(plant);
-    // Remove date fields and other metadata before editing
+    // Remove date fields and ensure modelMetadata is properly structured
     const { createdAt, updatedAt, ...cleanPlant } = plant;
-    setFormData(cleanPlant);
+    setFormData({
+      ...cleanPlant,
+      modelMetadata: plant.modelMetadata || defaultModelMetadata
+    });
     setIsEditModalOpen(true);
   };
 
@@ -166,13 +240,23 @@ export default function PlantsContent() {
       const response = await fetch('/api/threed/plants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          isCustomModel: formData.modelType !== 'procedural',
+        }),
       });
       const data = await response.json();
       if (data.success) {
         showToast('Plant added successfully', 'success');
         setIsAddModalOpen(false);
-        setFormData({ type: 'Vegetable', status: 'active', sunlight: 'Full Sun', waterNeeds: 'Medium' });
+        setFormData({ 
+          type: 'Vegetable', 
+          status: 'active', 
+          sunlight: 'Full Sun', 
+          waterNeeds: 'Medium',
+          modelType: 'procedural',
+          modelMetadata: defaultModelMetadata
+        });
         fetchPlants();
       } else {
         showToast('Failed to add plant', 'error');
@@ -185,20 +269,22 @@ export default function PlantsContent() {
   const handleUpdatePlant = async () => {
     if (!selectedPlant) return;
     try {
-      // Remove any date fields that might cause issues
+      // Remove date fields that might cause issues
       const { createdAt, updatedAt, ...cleanData } = formData;
       
       const response = await fetch(`/api/threed/plants?id=${selectedPlant.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cleanData),
+        body: JSON.stringify({
+          ...cleanData,
+          isCustomModel: cleanData.modelType !== 'procedural',
+        }),
       });
       const data = await response.json();
       if (data.success) {
         showToast('Plant updated successfully', 'success');
         setIsEditModalOpen(false);
         setSelectedPlant(null);
-        setFormData({});
         fetchPlants();
       } else {
         showToast('Failed to update plant', 'error');
@@ -365,6 +451,7 @@ export default function PlantsContent() {
                 <th className="px-4 py-3 w-8"></th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Plant</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Type</th>
+                <th className="px-4 py-3 text-left text-xs uppercase">Model</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Days to Maturity</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Spacing</th>
                 <th className="px-4 py-3 text-left text-xs uppercase">Sunlight</th>
@@ -393,6 +480,11 @@ export default function PlantsContent() {
                     </td>
                     <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
                       <Badge variant="outline">{plant.type || 'Unknown'}</Badge>
+                    </td>
+                    <td className="px-4 py-3" onClick={() => toggleRowExpansion(plant.id)}>
+                      <Badge variant={plant.isCustomModel ? "default" : "secondary"} className="text-xs">
+                        {plant.isCustomModel ? plant.modelType?.toUpperCase() : 'Procedural'}
+                      </Badge>
                     </td>
                     <td className="px-4 py-3 text-sm" onClick={() => toggleRowExpansion(plant.id)}>
                       {plant.daysToMaturity || 'N/A'} days
@@ -424,7 +516,7 @@ export default function PlantsContent() {
                   </tr>
                   {expandedRows.has(plant.id) && (
                     <tr className="bg-muted/30">
-                      <td colSpan={9} className="px-4 py-3">
+                      <td colSpan={10} className="px-4 py-3">
                         <div className="text-sm space-y-2">
                           <div>
                             <p className="font-medium text-foreground">Description</p>
@@ -434,6 +526,12 @@ export default function PlantsContent() {
                             <div>
                               <p className="font-medium text-foreground">Care Instructions</p>
                               <p className="text-muted-foreground">{plant.careInstructions}</p>
+                            </div>
+                          )}
+                          {plant.modelPath && (
+                            <div>
+                              <p className="font-medium text-foreground">Model Path</p>
+                              <p className="text-muted-foreground text-xs break-all">{plant.modelPath}</p>
                             </div>
                           )}
                           <div className="grid grid-cols-2 gap-4 mt-2">
@@ -453,7 +551,7 @@ export default function PlantsContent() {
                 </React.Fragment>
               ))}
             </tbody>
-           </table>
+          </table>
         </div>
         
         {totalPages > 1 && (
@@ -475,207 +573,329 @@ export default function PlantsContent() {
         )}
       </Card>
 
-      {/* Add Plant Modal */}
+      {/* Add Plant Modal - Updated with standardized model fields */}
       <Modal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} title="Add New Plant">
-        <div className="space-y-4">
-          <div>
-            <Label>Common Name *</Label>
-            <Input
-              value={formData.commonName || ''}
-              onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
-              placeholder="e.g., Roma Tomato"
-              required
-            />
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Plant ID *</Label>
+              <Input
+                value={formData.plantId || ''}
+                onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
+                placeholder="e.g., TOM-001"
+              />
+            </div>
+            <div>
+              <Label>Common Name *</Label>
+              <Input
+                value={formData.commonName || ''}
+                onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
+                placeholder="e.g., Roma Tomato"
+                required
+              />
+            </div>
           </div>
-          <div>
-            <Label>Scientific Name</Label>
-            <Input
-              value={formData.scientificName || ''}
-              onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
-              placeholder="e.g., Solanum lycopersicum"
-            />
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Scientific Name</Label>
+              <Input
+                value={formData.scientificName || ''}
+                onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
+                placeholder="e.g., Solanum lycopersicum"
+              />
+            </div>
+            <div>
+              <Label>Variety</Label>
+              <Input
+                value={formData.variety || ''}
+                onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
+                placeholder="e.g., Roma"
+              />
+            </div>
           </div>
-          <div>
-            <Label>Type</Label>
-            <select
-              value={formData.type || 'Vegetable'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Vegetable">Vegetable</option>
-              <option value="Fruit">Fruit</option>
-              <option value="Herb">Herb</option>
-              <option value="Flower">Flower</option>
-              <option value="Tree">Tree</option>
-            </select>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Type</Label>
+              <select
+                value={formData.type || 'Vegetable'}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Vegetable">Vegetable</option>
+                <option value="Fruit">Fruit</option>
+                <option value="Herb">Herb</option>
+                <option value="Flower">Flower</option>
+                <option value="Tree">Tree</option>
+              </select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <select
+                value={formData.status || 'active'}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <Label>Days to Maturity</Label>
-            <Input
-              type="number"
-              value={formData.daysToMaturity || ''}
-              onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) })}
-            />
+          
+          {/* 3D Model Section - Standardized */}
+          <div className="border-t pt-3 mt-2">
+            <Label className="text-base font-semibold">3D Model Settings</Label>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                <Label>Model Type</Label>
+                <select
+                  value={formData.modelType || 'procedural'}
+                  onChange={(e) => setFormData({ ...formData, modelType: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg bg-background"
+                >
+                  <option value="procedural">Procedural (Built-in)</option>
+                  <option value="gltf">GLTF Model</option>
+                  <option value="glb">GLB Model</option>
+                  <option value="fbx">FBX Model</option>
+                </select>
+              </div>
+              {formData.modelType !== 'procedural' && (
+                <div>
+                  <Label>Model Path/URL</Label>
+                  <Input
+                    value={formData.modelPath || ''}
+                    onChange={(e) => setFormData({ ...formData, modelPath: e.target.value })}
+                    placeholder="/models/plant.glb or https://..."
+                  />
+                </div>
+              )}
+            </div>
           </div>
-          <div>
-            <Label>Spacing (inches)</Label>
-            <Input
-              type="number"
-              value={formData.spacingInches || ''}
-              onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) })}
-            />
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Days to Maturity</Label>
+              <Input
+                type="number"
+                value={formData.daysToMaturity || ''}
+                onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) || 0 })}
+                placeholder="60-90"
+              />
+            </div>
+            <div>
+              <Label>Spacing (inches)</Label>
+              <Input
+                type="number"
+                value={formData.spacingInches || ''}
+                onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) || 0 })}
+                placeholder="12-24"
+              />
+            </div>
           </div>
-          <div>
-            <Label>Sunlight</Label>
-            <select
-              value={formData.sunlight || 'Full Sun'}
-              onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Full Sun">Full Sun</option>
-              <option value="Partial Sun">Partial Sun</option>
-              <option value="Partial Shade">Partial Shade</option>
-              <option value="Full Shade">Full Shade</option>
-            </select>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Sunlight</Label>
+              <select
+                value={formData.sunlight || 'Full Sun'}
+                onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Full Sun">Full Sun</option>
+                <option value="Partial Sun">Partial Sun</option>
+                <option value="Partial Shade">Partial Shade</option>
+                <option value="Full Shade">Full Shade</option>
+              </select>
+            </div>
+            <div>
+              <Label>Water Needs</Label>
+              <select
+                value={formData.waterNeeds || 'Medium'}
+                onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <Label>Water Needs</Label>
-            <select
-              value={formData.waterNeeds || 'Medium'}
-              onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
+          
           <div>
             <Label>Description</Label>
             <Textarea
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
+              placeholder="Plant description..."
             />
           </div>
-          <div className="flex justify-end gap-3">
+          
+          <div>
+            <Label>Care Instructions</Label>
+            <Textarea
+              value={formData.careInstructions || ''}
+              onChange={(e) => setFormData({ ...formData, careInstructions: e.target.value })}
+              rows={2}
+              placeholder="Watering, fertilizing, pruning..."
+            />
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-3 border-t">
             <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>Cancel</Button>
             <Button onClick={handleAddPlant}>Add Plant</Button>
           </div>
         </div>
       </Modal>
 
-      {/* Edit Plant Modal */}
+      {/* Edit Plant Modal - Updated with standardized model fields */}
       <Modal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Plant">
-        <div className="space-y-4">
-          <div>
-            <Label>Common Name *</Label>
-            <Input
-              value={formData.commonName || ''}
-              onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
-              required
-            />
-          </div>
-          <div>
-            <Label>Scientific Name</Label>
-            <Input
-              value={formData.scientificName || ''}
-              onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
-            />
-          </div>
-          <div>
-            <Label>Type</Label>
-            <select
-              value={formData.type || 'Vegetable'}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Vegetable">Vegetable</option>
-              <option value="Fruit">Fruit</option>
-              <option value="Herb">Herb</option>
-              <option value="Flower">Flower</option>
-            </select>
-          </div>
-          <div>
-            <Label>Days to Maturity</Label>
-            <Input
-              type="number"
-              value={formData.daysToMaturity || ''}
-              onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) })}
-            />
-          </div>
-          <div>
-            <Label>Spacing (inches)</Label>
-            <Input
-              type="number"
-              value={formData.spacingInches || ''}
-              onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) })}
-            />
-          </div>
-          <div>
-            <Label>Sunlight</Label>
-            <select
-              value={formData.sunlight || 'Full Sun'}
-              onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Full Sun">Full Sun</option>
-              <option value="Partial Sun">Partial Sun</option>
-              <option value="Partial Shade">Partial Shade</option>
-              <option value="Full Shade">Full Shade</option>
-            </select>
-          </div>
-          <div>
-            <Label>Water Needs</Label>
-            <select
-              value={formData.waterNeeds || 'Medium'}
-              onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
-          </div>
-          <div>
-            <Label>3D Model Type</Label>
-            <select
-              value={formData.modelType || ''}
-              onChange={(e) => setFormData({ ...formData, modelType: e.target.value })}
-              className="w-full px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="">Auto-detect</option>
-              <option value="tomato">Tomato</option>
-              <option value="pepper">Pepper</option>
-              <option value="lettuce">Lettuce</option>
-              <option value="carrot">Carrot</option>
-              <option value="basil">Basil</option>
-              <option value="strawberry">Strawberry</option>
-              <option value="sunflower">Sunflower</option>
-              <option value="rose">Rose</option>
-              <option value="corn">Corn</option>
-              <option value="herb-generic">Generic Herb</option>
-              <option value="flower-generic">Generic Flower</option>
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Foliage Color</Label>
+              <Label>Plant ID</Label>
               <Input
-                type="color"
-                value={formData.foliageColor || '#32CD32'}
-                onChange={(e) => setFormData({ ...formData, foliageColor: e.target.value })}
+                value={formData.plantId || ''}
+                onChange={(e) => setFormData({ ...formData, plantId: e.target.value })}
+                readOnly
+                className="bg-muted"
               />
             </div>
             <div>
-              <Label>Fruit Color</Label>
+              <Label>Common Name *</Label>
               <Input
-                type="color"
-                value={formData.fruitColor || '#FF6347'}
-                onChange={(e) => setFormData({ ...formData, fruitColor: e.target.value })}
+                value={formData.commonName || ''}
+                onChange={(e) => setFormData({ ...formData, commonName: e.target.value })}
+                required
               />
             </div>
           </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Scientific Name</Label>
+              <Input
+                value={formData.scientificName || ''}
+                onChange={(e) => setFormData({ ...formData, scientificName: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label>Variety</Label>
+              <Input
+                value={formData.variety || ''}
+                onChange={(e) => setFormData({ ...formData, variety: e.target.value })}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Type</Label>
+              <select
+                value={formData.type || 'Vegetable'}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Vegetable">Vegetable</option>
+                <option value="Fruit">Fruit</option>
+                <option value="Herb">Herb</option>
+                <option value="Flower">Flower</option>
+                <option value="Tree">Tree</option>
+              </select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <select
+                value={formData.status || 'active'}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+                <option value="archived">Archived</option>
+              </select>
+            </div>
+          </div>
+          
+          {/* 3D Model Section - Standardized */}
+          <div className="border-t pt-3 mt-2">
+            <Label className="text-base font-semibold">3D Model Settings</Label>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <div>
+                <Label>Model Type</Label>
+                <select
+                  value={formData.modelType || 'procedural'}
+                  onChange={(e) => setFormData({ ...formData, modelType: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg bg-background"
+                >
+                  <option value="procedural">Procedural (Built-in)</option>
+                  <option value="gltf">GLTF Model</option>
+                  <option value="glb">GLB Model</option>
+                  <option value="fbx">FBX Model</option>
+                </select>
+              </div>
+              {formData.modelType !== 'procedural' && (
+                <div>
+                  <Label>Model Path/URL</Label>
+                  <Input
+                    value={formData.modelPath || ''}
+                    onChange={(e) => setFormData({ ...formData, modelPath: e.target.value })}
+                    placeholder="/models/plant.glb or https://..."
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Days to Maturity</Label>
+              <Input
+                type="number"
+                value={formData.daysToMaturity || ''}
+                onChange={(e) => setFormData({ ...formData, daysToMaturity: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <Label>Spacing (inches)</Label>
+              <Input
+                type="number"
+                value={formData.spacingInches || ''}
+                onChange={(e) => setFormData({ ...formData, spacingInches: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Sunlight</Label>
+              <select
+                value={formData.sunlight || 'Full Sun'}
+                onChange={(e) => setFormData({ ...formData, sunlight: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Full Sun">Full Sun</option>
+                <option value="Partial Sun">Partial Sun</option>
+                <option value="Partial Shade">Partial Shade</option>
+                <option value="Full Shade">Full Shade</option>
+              </select>
+            </div>
+            <div>
+              <Label>Water Needs</Label>
+              <select
+                value={formData.waterNeeds || 'Medium'}
+                onChange={(e) => setFormData({ ...formData, waterNeeds: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg bg-background"
+              >
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
+            </div>
+          </div>
+          
           <div>
             <Label>Description</Label>
             <Textarea
@@ -684,24 +904,24 @@ export default function PlantsContent() {
               rows={3}
             />
           </div>
-          <div className="flex justify-end gap-3 pt-4 mt-4 border-t">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setSelectedPlant(null);
-                setFormData({});
-              }}
-            >
+          
+          <div>
+            <Label>Care Instructions</Label>
+            <Textarea
+              value={formData.careInstructions || ''}
+              onChange={(e) => setFormData({ ...formData, careInstructions: e.target.value })}
+              rows={2}
+            />
+          </div>
+          
+          <div className="flex justify-end gap-3 pt-3 border-t">
+            <Button variant="outline" onClick={() => {
+              setIsEditModalOpen(false);
+              setSelectedPlant(null);
+            }}>
               Cancel
             </Button>
-            <Button 
-              variant="secondary"
-              onClick={handleUpdatePlant}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              Save Changes
-            </Button>
+            <Button onClick={handleUpdatePlant}>Save Changes</Button>
           </div>
         </div>
       </Modal>

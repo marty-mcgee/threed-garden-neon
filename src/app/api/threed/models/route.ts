@@ -203,12 +203,12 @@ export async function POST(request: NextRequest) {
       console.warn('Invalid metadata JSON');
     }
 
-    // If this model is set as default, unset any existing default for this plant
-    if (isDefault) {
-      await db.update(threedModels)
-        .set({ isDefault: false })
-        .where(eq(threedModels.plantId, parseInt(plantId)));
-    }
+    // // If this model is set as default, unset any existing default for this plant
+    // if (isDefault) {
+    //   await db.update(threedModels)
+    //     .set({ isDefault: false })
+    //     .where(eq(threedModels.plantId, parseInt(plantId)));
+    // }
 
     // Create model record
     const timestamp = Date.now();

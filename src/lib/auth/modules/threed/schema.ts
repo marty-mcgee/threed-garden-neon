@@ -23,19 +23,19 @@ export const farmbotStatusEnum = pgEnum('threed_farmbot_status', ['online', 'off
 export const threedPlants = pgTable('threed_plants', {
   id: serial('id').primaryKey(),
   plantId: varchar('plant_id', { length: 50 }).unique().notNull(),
-  commonName: varchar('common_name', { length: 200 }).notNull(),
-  scientificName: varchar('scientific_name', { length: 200 }),
+  commonName: varchar('common_name', { length: 255 }).notNull(),
+  scientificName: varchar('scientific_name', { length: 255 }),
   variety: varchar('variety', { length: 100 }),
   family: varchar('family', { length: 100 }),
   type: plantTypeEnum('type').default('Vegetable'),
   status: plantStatusEnum('status').default('active'),
   
-  // NEW: 3D Model fields
-  modelType: varchar('model_type', { length: 50 }), // tomato, basil, pepper, etc.
-  customModelUrl: text('custom_model_url'), // For custom GLTF/GLB models
-  modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1'),
-  foliageColor: varchar('foliage_color', { length: 20 }).default('#32CD32'),
-  fruitColor: varchar('fruit_color', { length: 20 }).default('#FF6347'),
+  // Standardized 3D Model fields ONLY
+  modelType: varchar('model_type', { length: 50 }).default('procedural'),
+  modelPath: varchar('model_path', { length: 500 }),
+  modelMetadata: jsonb('model_metadata').default({}),
+  isCustomModel: boolean('is_custom_model').default(false),
+  modelVersion: integer('model_version').default(1),
   
   // Growth parameters
   growthHabit: varchar('growth_habit', { length: 50 }),
@@ -43,7 +43,7 @@ export const threedPlants = pgTable('threed_plants', {
   daysToGermination: integer('days_to_germination'),
   daysToHarvest: integer('days_to_harvest'),
   
-  // Spacing requirements (inches)
+  // Spacing requirements
   spacingInches: integer('spacing_inches'),
   rowSpacingInches: integer('row_spacing_inches'),
   plantingDepthInches: decimal('planting_depth_inches', { precision: 3, scale: 1 }),
@@ -78,6 +78,7 @@ export const threedPlants = pgTable('threed_plants', {
   commonNameIdx: index('idx_threed_plants_common_name').on(table.commonName),
   typeIdx: index('idx_threed_plants_type').on(table.type),
   statusIdx: index('idx_threed_plants_status').on(table.status),
+  modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
 }));
 
 // ============================================

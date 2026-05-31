@@ -1,5 +1,5 @@
 // src/app/api/threed/plantings/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { threedPlantings, threedPlants, threedBeds } from '@/lib/auth/schema';
 import { desc, eq, and, sql } from 'drizzle-orm';
@@ -7,70 +7,159 @@ import { desc, eq, and, sql } from 'drizzle-orm';
 export const dynamic = 'force-dynamic';
 
 // GET /api/threed/plantings - List plantings with filters
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get('limit') || '100');
-  const offset = parseInt(searchParams.get('offset') || '0');
-  const bedId = searchParams.get('bedId');
-  const plantId = searchParams.get('plantId');
-  const status = searchParams.get('status');
+// export async function GETOLD(request: Request) {
+//   const { searchParams } = new URL(request.url);
+//   const limit = parseInt(searchParams.get('limit') || '100');
+//   const offset = parseInt(searchParams.get('offset') || '0');
+//   const bedId = searchParams.get('bedId');
+//   const plantId = searchParams.get('plantId');
+//   const status = searchParams.get('status');
   
+//   try {
+//     let conditions = [];
+    
+//     if (bedId) {
+//       conditions.push(eq(threedPlantings.bedId, parseInt(bedId)));
+//     }
+    
+//     if (plantId) {
+//       conditions.push(eq(threedPlantings.plantId, parseInt(plantId)));
+//     }
+    
+//     if (status && status !== 'all') {
+//       conditions.push(eq(threedPlantings.status, status as any));
+//     }
+    
+//     const whereClause = conditions.length > 0 
+//       ? and(...conditions) 
+//       : undefined;
+    
+//     const plantings = await db
+//       .select({
+//         planting: threedPlantings,
+//         plant: {
+//           id: threedPlants.id,
+//           commonName: threedPlants.commonName,
+//           scientificName: threedPlants.scientificName,
+//           type: threedPlants.type,
+//           daysToMaturity: threedPlants.daysToMaturity,
+//         },
+//         bed: threedBeds,
+//       })
+//       .from(threedPlantings)
+//       .leftJoin(threedPlants, eq(threedPlantings.plantId, threedPlants.id))
+//       .leftJoin(threedBeds, eq(threedPlantings.bedId, threedBeds.id))
+//       .where(whereClause)
+//       .orderBy(desc(threedPlantings.plantedDate))
+//       .limit(limit)
+//       .offset(offset);
+    
+//     const total = await db
+//       .select({ count: sql<number>`COUNT(*)` })
+//       .from(threedPlantings)
+//       .where(whereClause);
+    
+//     return NextResponse.json({
+//       success: true,
+//       data: plantings,
+//       count: plantings.length,
+//       total: total[0]?.count || 0,
+//       timestamp: new Date().toISOString()
+//     });
+    
+//   } catch (error) {
+//     console.error('Plantings GET Error:', error);
+//     return NextResponse.json(
+//       { success: false, error: 'Internal server error' },
+//       { status: 500 }
+//     );
+//   }
+// }
+export async function GET(request: NextRequest) {
   try {
-    let conditions = [];
-    
+    const searchParams = request.nextUrl.searchParams;
+    const bedId = searchParams.get('bedId');
+    const status = searchParams.get('status');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const offset = parseInt(searchParams.get('offset') || '0');
+
+    let query = db.select({
+      planting: {
+        id: threedPlantings.id,
+        plantingId: threedPlantings.plantingId,
+        plantId: threedPlantings.plantId,
+        bedId: threedPlantings.bedId,
+        quantity: threedPlantings.quantity,
+        spacingInches: threedPlantings.spacingInches,
+        positionX: threedPlantings.positionX,
+        positionY: threedPlantings.positionY,
+        positionZ: threedPlantings.positionZ,
+        plantedDate: threedPlantings.plantedDate,
+        status: threedPlantings.status,
+        growthStage: threedPlantings.growthStage,
+        health: threedPlantings.health,
+        notes: threedPlantings.notes,
+        createdAt: threedPlantings.createdAt,
+        updatedAt: threedPlantings.updatedAt,
+      },
+      plant: {
+        id: threedPlants.id,
+        plantId: threedPlants.plantId,
+        commonName: threedPlants.commonName,
+        scientificName: threedPlants.scientificName,
+        type: threedPlants.type,
+        daysToMaturity: threedPlants.daysToMaturity,
+        // Standardized model fields only
+        modelType: threedPlants.modelType,
+        modelPath: threedPlants.modelPath,
+        modelMetadata: threedPlants.modelMetadata,
+        isCustomModel: threedPlants.isCustomModel,
+      },
+      bed: {
+        id: threedBeds.id,
+        name: threedBeds.name,
+        shape: threedBeds.shape,
+        widthFeet: threedBeds.widthFeet,
+        lengthFeet: threedBeds.lengthFeet,
+        positionX: threedBeds.positionX,
+        positionY: threedBeds.positionY,
+        positionZ: threedBeds.positionZ,
+        color: threedBeds.color,
+      }
+    })
+    .from(threedPlantings)
+    .leftJoin(threedPlants, eq(threedPlantings.plantId, threedPlants.id))
+    .leftJoin(threedBeds, eq(threedPlantings.bedId, threedBeds.id));
+
     if (bedId) {
-      conditions.push(eq(threedPlantings.bedId, parseInt(bedId)));
+      query = query.where(eq(threedPlantings.bedId, parseInt(bedId)));
     }
-    
-    if (plantId) {
-      conditions.push(eq(threedPlantings.plantId, parseInt(plantId)));
+    if (status) {
+      query = query.where(eq(threedPlantings.status, status));
     }
-    
-    if (status && status !== 'all') {
-      conditions.push(eq(threedPlantings.status, status as any));
-    }
-    
-    const whereClause = conditions.length > 0 
-      ? and(...conditions) 
-      : undefined;
-    
-    const plantings = await db
-      .select({
-        planting: threedPlantings,
-        plant: {
-          id: threedPlants.id,
-          commonName: threedPlants.commonName,
-          scientificName: threedPlants.scientificName,
-          type: threedPlants.type,
-          daysToMaturity: threedPlants.daysToMaturity,
-        },
-        bed: threedBeds,
-      })
-      .from(threedPlantings)
-      .leftJoin(threedPlants, eq(threedPlantings.plantId, threedPlants.id))
-      .leftJoin(threedBeds, eq(threedPlantings.bedId, threedBeds.id))
-      .where(whereClause)
-      .orderBy(desc(threedPlantings.plantedDate))
+
+    const plantings = await query
+      .orderBy(desc(threedPlantings.createdAt))
       .limit(limit)
       .offset(offset);
-    
-    const total = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(threedPlantings)
-      .where(whereClause);
-    
+
+    const countResult = await db.select({ count: sql<number>`count(*)` })
+      .from(threedPlantings);
+    const total = countResult[0];
+
     return NextResponse.json({
       success: true,
       data: plantings,
-      count: plantings.length,
-      total: total[0]?.count || 0,
-      timestamp: new Date().toISOString()
+      pagination: {
+        limit,
+        offset,
+        total: total?.count || 0,
+      },
     });
-    
   } catch (error) {
-    console.error('Plantings GET Error:', error);
+    console.error('Error fetching plantings:', error);
     return NextResponse.json(
-      { success: false, error: 'Internal server error' },
+      { success: false, error: 'Failed to fetch plantings' },
       { status: 500 }
     );
   }

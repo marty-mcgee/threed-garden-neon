@@ -25,6 +25,7 @@ import {
   useTexture
 } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette, DepthOfField } from '@react-three/postprocessing';
+import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 
 // Import your custom components
@@ -94,10 +95,16 @@ interface FlattenedPlanting {
   growthStage: string;
   daysToMaturity: number;
   bedId: number;
-  // Add model data from the plant record
-  modelType: string,
-  modelPath: string,
-  modelMetadata: string,
+  // Standardized model fields only
+  modelType: string | null;
+  modelPath: string | null;
+  modelMetadata: {
+    scale?: number;
+    rotationY?: number;
+    offsets?: { x: number; y: number; z: number };
+    animations?: string[];
+    defaultAnimation?: string;
+  } | null;
 }
 
 interface ThreeDGardenProps {
@@ -113,7 +120,19 @@ interface ThreeDGardenProps {
 }
 
 // Helper function to flatten planting data
+// Update the flattenPlanting function to properly extract model data
 function flattenPlanting(rawPlanting: RawPlantingData): FlattenedPlanting {
+  // Debug logging to see what data we have
+  console.log('📦 Raw planting data:', {
+    plantingId: rawPlanting.planting.id,
+    plantId: rawPlanting.plant?.id,
+    plantName: rawPlanting.plant?.commonName,
+    rawPlant: rawPlanting.plant,
+    modelType: rawPlanting.plant?.modelType,
+    modelPath: rawPlanting.plant?.modelPath,
+    modelMetadata: rawPlanting.plant?.modelMetadata
+  });
+  
   return {
     id: rawPlanting.planting.id,
     plantId: rawPlanting.planting.plantId,
@@ -126,10 +145,14 @@ function flattenPlanting(rawPlanting: RawPlantingData): FlattenedPlanting {
     growthStage: rawPlanting.planting.growthStage || 'vegetative',
     daysToMaturity: rawPlanting.plant?.daysToMaturity || 60,
     bedId: rawPlanting.planting.bedId,
-    // Add model data from the plant record
-    modelType: rawPlanting.plant?.modelType,
-    modelPath: rawPlanting.plant?.modelPath,
-    modelMetadata: rawPlanting.plant?.modelMetadata,
+    // Standardized model fields only
+    modelType: rawPlanting.plant?.modelType || 'procedural',
+    modelPath: rawPlanting.plant?.modelPath || null,
+    modelMetadata: rawPlanting.plant?.modelMetadata || {
+      scale: 1,
+      rotationY: 0,
+      offsets: { x: 0, y: 0, z: 0 }
+    }
   };
 }
 
@@ -363,6 +386,15 @@ function GardenScene({ beds, plantings, weather, onBedSelect, onPlantSelect }: T
   
   // Flatten all plantings with useMemo for performance
   const flattenedPlantings = useMemo(() => plantings.map(flattenPlanting), [plantings]);
+
+  // In GardenScene, before rendering plants
+  console.log('🌱 Plantings data:', flattenedPlantings.map(p => ({
+    id: p.id,
+    name: p.plantName,
+    modelType: p.modelType,
+    modelPath: p.modelPath,
+    position: [p.positionX, p.positionY, p.positionZ]
+  })));
   
   // Update lighting based on time
   useEffect(() => {
@@ -531,14 +563,6 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
   }, [quality]);
   
   if (!beds.length && !plantings.length) {
-    // [MM]
-    // You can add this to debug positions
-    console.log('Plant positions:', plantings.map(p => ({
-      name: p.plantName,
-      position: [p.positionX, p.positionY, p.positionZ],
-      modelPath: p.modelPath
-    })));
-
     return (
       <div className="flex flex-col items-center justify-center h-[800px] bg-gradient-to-b from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl border">
         <div className="text-center">
@@ -550,16 +574,33 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
     );
   }
   
+  // [MM]
+  // You can add this to debug positions
+  console.log('Plant positions:', plantings.map(p => ({
+    name: p.plantName,
+    position: [p.positionX, p.positionY, p.positionZ],
+    modelPath: p.modelPath,
+    id: p.planting.id,
+    plantName: p.plant?.commonName,
+    modelType: p.plant?.modelType,
+    // modelPath: p.plant?.modelPath,
+    hasModel: !!(p.plant?.modelType && p.plant?.modelPath)
+  })));
+  
   return (
     <div className="relative w-full h-[800px] rounded-xl overflow-hidden border bg-black/5 shadow-xl">
       <Canvas
         shadows={quality !== 'low'}
         dpr={dpr}
         gl={{
-          antialias: quality !== 'low',
+          antialias: true,
           alpha: false,
-          powerPreference: "high-performance"
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: false,
+          depth: true,
+          stencil: false
         }}
+        camera={{ position: [14, 12, 16], fov: 50, near: 0.1, far: 100 }}
         performance={{ min: 0.5 }}
       >
         <Suspense fallback={null}>
@@ -595,14 +636,17 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
           {quality === 'high' && (
             <EffectComposer>
               <Bloom 
-                intensity={0.4} 
-                luminanceThreshold={0.2} 
-                luminanceSmoothing={0.9}
-                mipmapBlur
+                intensity={0.3}        // Reduced from 0.4 to reduce flicker
+                luminanceThreshold={0.3} // Increased from 0.2 to reduce bloom on dark areas
+                luminanceSmoothing={0.8} // Reduced from 0.9 for tighter bloom
+                kernelSize={3}          // Smaller kernel = faster, less flicker
+                mipmapBlur={false}      // Disable mipmap blur - major cause of flicker
               />
               <Vignette 
-                offset={0.3} 
-                darkness={0.5} 
+                offset={0.5}           // Increased offset for softer vignette
+                darkness={0.3}         // Reduced darkness
+                eskil={false}          // Disable eskil tone mapping
+                blendFunction={BlendFunction.NORMAL}
               />
             </EffectComposer>
           )}

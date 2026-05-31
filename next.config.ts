@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/models/:path*',
+        destination: 'https://apsqens5mwlzhadv.public.blob.vercel-storage.com/models/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -1,5 +1,5 @@
 {
-  "id": "caa037f2-23b8-4c4c-af1a-2754da9c1c2f",
+  "id": "8dc6bb2b-a893-4644-93f6-2e3907339adc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2480,6 +2480,367 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.threed_model_files": {
+      "name": "threed_model_files",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "model_id": {
+          "name": "model_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_name": {
+          "name": "file_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_type": {
+          "name": "file_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texture_type": {
+          "name": "texture_type",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "file_path": {
+          "name": "file_path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_binary_buffer": {
+          "name": "is_binary_buffer",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "load_order": {
+          "name": "load_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_threed_model_files_model_id": {
+          "name": "idx_threed_model_files_model_id",
+          "columns": [
+            {
+              "expression": "model_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_model_files_type": {
+          "name": "idx_threed_model_files_type",
+          "columns": [
+            {
+              "expression": "file_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "threed_model_files_model_id_threed_models_id_fk": {
+          "name": "threed_model_files_model_id_threed_models_id_fk",
+          "tableFrom": "threed_model_files",
+          "tableTo": "threed_models",
+          "columnsFrom": [
+            "model_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.threed_models": {
+      "name": "threed_models",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "plant_id": {
+          "name": "plant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_name": {
+          "name": "model_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "model_type": {
+          "name": "model_type",
+          "type": "threed_model_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_path": {
+          "name": "file_path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "file_size": {
+          "name": "file_size",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "scale": {
+          "name": "scale",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.0'"
+        },
+        "rotation_y": {
+          "name": "rotation_y",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.0'"
+        },
+        "offset_x": {
+          "name": "offset_x",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.0'"
+        },
+        "offset_y": {
+          "name": "offset_y",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.0'"
+        },
+        "offset_z": {
+          "name": "offset_z",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.0'"
+        },
+        "has_lod": {
+          "name": "has_lod",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "lod_levels": {
+          "name": "lod_levels",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'::jsonb"
+        },
+        "animations": {
+          "name": "animations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'[]'::jsonb"
+        },
+        "default_animation": {
+          "name": "default_animation",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "has_external_files": {
+          "name": "has_external_files",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "texture_count": {
+          "name": "texture_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "main_model_file_id": {
+          "name": "main_model_file_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "is_default": {
+          "name": "is_default",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "uploaded_at": {
+          "name": "uploaded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_threed_models_plant_id": {
+          "name": "idx_threed_models_plant_id",
+          "columns": [
+            {
+              "expression": "plant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_models_type": {
+          "name": "idx_threed_models_type",
+          "columns": [
+            {
+              "expression": "model_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_models_active": {
+          "name": "idx_threed_models_active",
+          "columns": [
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "threed_models_plant_id_threed_plants_id_fk": {
+          "name": "threed_models_plant_id_threed_plants_id_fk",
+          "tableFrom": "threed_models",
+          "tableTo": "threed_plants",
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.threed_plantings": {
       "name": "threed_plantings",
       "schema": "",
@@ -2507,6 +2868,26 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "custom_model_id": {
+          "name": "custom_model_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_scale": {
+          "name": "model_scale",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.0'"
+        },
+        "model_offset": {
+          "name": "model_offset",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{\"x\":0,\"y\":0,\"z\":0}'::jsonb"
         },
         "quantity": {
           "name": "quantity",
@@ -2667,6 +3048,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_threed_plantings_custom_model": {
+          "name": "idx_threed_plantings_custom_model",
+          "columns": [
+            {
+              "expression": "custom_model_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -2689,6 +3085,19 @@
           "tableTo": "threed_beds",
           "columnsFrom": [
             "bed_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "threed_plantings_custom_model_id_threed_models_id_fk": {
+          "name": "threed_plantings_custom_model_id_threed_models_id_fk",
+          "tableFrom": "threed_plantings",
+          "tableTo": "threed_models",
+          "columnsFrom": [
+            "custom_model_id"
           ],
           "columnsTo": [
             "id"
@@ -2729,13 +3138,13 @@
         },
         "common_name": {
           "name": "common_name",
-          "type": "varchar(200)",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         },
         "scientific_name": {
           "name": "scientific_name",
-          "type": "varchar(200)",
+          "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
@@ -2766,6 +3175,68 @@
           "primaryKey": false,
           "notNull": false,
           "default": "'active'"
+        },
+        "model_type": {
+          "name": "model_type",
+          "type": "threed_model_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'procedural'"
+        },
+        "model_path": {
+          "name": "model_path",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_metadata": {
+          "name": "model_metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'::jsonb"
+        },
+        "is_custom_model": {
+          "name": "is_custom_model",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "model_version": {
+          "name": "model_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 1
+        },
+        "custom_model_url": {
+          "name": "custom_model_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "model_scale": {
+          "name": "model_scale",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1'"
+        },
+        "foliage_color": {
+          "name": "foliage_color",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'#32CD32'"
+        },
+        "fruit_color": {
+          "name": "fruit_color",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'#FF6347'"
         },
         "growth_habit": {
           "name": "growth_habit",
@@ -2984,6 +3455,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_threed_plants_model_type": {
+          "name": "idx_threed_plants_model_type",
+          "columns": [
+            {
+              "expression": "model_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {},
@@ -3123,6 +3609,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "watering_schedule_id": {
+          "name": "watering_schedule_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "title": {
           "name": "title",
           "type": "varchar(200)",
@@ -3256,6 +3748,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_threed_tasks_watering": {
+          "name": "idx_threed_tasks_watering",
+          "columns": [
+            {
+              "expression": "watering_schedule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -3297,6 +3804,19 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
+        },
+        "threed_tasks_watering_schedule_id_threed_watering_schedules_id_fk": {
+          "name": "threed_tasks_watering_schedule_id_threed_watering_schedules_id_fk",
+          "tableFrom": "threed_tasks",
+          "tableTo": "threed_watering_schedules",
+          "columnsFrom": [
+            "watering_schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -3306,6 +3826,600 @@
           "nullsNotDistinct": false,
           "columns": [
             "task_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.threed_watering_history": {
+      "name": "threed_watering_history",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "history_id": {
+          "name": "history_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plant_id": {
+          "name": "plant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "farmbot_id": {
+          "name": "farmbot_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planting_id": {
+          "name": "planting_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "volume_ml": {
+          "name": "volume_ml",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "skip_reason": {
+          "name": "skip_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "error_message": {
+          "name": "error_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "soil_moisture_before": {
+          "name": "soil_moisture_before",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "soil_moisture_after": {
+          "name": "soil_moisture_after",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "temperature_at_time": {
+          "name": "temperature_at_time",
+          "type": "numeric(5, 1)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weather_at_time": {
+          "name": "weather_at_time",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "executed_at": {
+          "name": "executed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "executed_by": {
+          "name": "executed_by",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'automated'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_threed_watering_history_id": {
+          "name": "idx_threed_watering_history_id",
+          "columns": [
+            {
+              "expression": "history_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_history_schedule": {
+          "name": "idx_threed_watering_history_schedule",
+          "columns": [
+            {
+              "expression": "schedule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_history_plant": {
+          "name": "idx_threed_watering_history_plant",
+          "columns": [
+            {
+              "expression": "plant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_history_executed_at": {
+          "name": "idx_threed_watering_history_executed_at",
+          "columns": [
+            {
+              "expression": "executed_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_history_status": {
+          "name": "idx_threed_watering_history_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "threed_watering_history_schedule_id_threed_watering_schedules_id_fk": {
+          "name": "threed_watering_history_schedule_id_threed_watering_schedules_id_fk",
+          "tableFrom": "threed_watering_history",
+          "tableTo": "threed_watering_schedules",
+          "columnsFrom": [
+            "schedule_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "threed_watering_history_plant_id_threed_plants_id_fk": {
+          "name": "threed_watering_history_plant_id_threed_plants_id_fk",
+          "tableFrom": "threed_watering_history",
+          "tableTo": "threed_plants",
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "threed_watering_history_farmbot_id_threed_farmbots_id_fk": {
+          "name": "threed_watering_history_farmbot_id_threed_farmbots_id_fk",
+          "tableFrom": "threed_watering_history",
+          "tableTo": "threed_farmbots",
+          "columnsFrom": [
+            "farmbot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "threed_watering_history_planting_id_threed_plantings_id_fk": {
+          "name": "threed_watering_history_planting_id_threed_plantings_id_fk",
+          "tableFrom": "threed_watering_history",
+          "tableTo": "threed_plantings",
+          "columnsFrom": [
+            "planting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "threed_watering_history_history_id_unique": {
+          "name": "threed_watering_history_history_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "history_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.threed_watering_schedules": {
+      "name": "threed_watering_schedules",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "schedule_id": {
+          "name": "schedule_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plant_id": {
+          "name": "plant_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "farmbot_id": {
+          "name": "farmbot_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bed_id": {
+          "name": "bed_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "planting_id": {
+          "name": "planting_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "frequency": {
+          "name": "frequency",
+          "type": "threed_watering_frequency",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "interval_days": {
+          "name": "interval_days",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "days_of_week": {
+          "name": "days_of_week",
+          "type": "integer[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "time_of_day": {
+          "name": "time_of_day",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volume_ml": {
+          "name": "volume_ml",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "moisture_threshold": {
+          "name": "moisture_threshold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "next_watering": {
+          "name": "next_watering",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_watering": {
+          "name": "last_watering",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "skip_if_rain": {
+          "name": "skip_if_rain",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "max_temperature": {
+          "name": "max_temperature",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "min_temperature": {
+          "name": "min_temperature",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_wind_speed": {
+          "name": "max_wind_speed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "repeat_count": {
+          "name": "repeat_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "times_executed": {
+          "name": "times_executed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_threed_watering_schedule_id": {
+          "name": "idx_threed_watering_schedule_id",
+          "columns": [
+            {
+              "expression": "schedule_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_plant": {
+          "name": "idx_threed_watering_plant",
+          "columns": [
+            {
+              "expression": "plant_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_farmbot": {
+          "name": "idx_threed_watering_farmbot",
+          "columns": [
+            {
+              "expression": "farmbot_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_next": {
+          "name": "idx_threed_watering_next",
+          "columns": [
+            {
+              "expression": "next_watering",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_active": {
+          "name": "idx_threed_watering_active",
+          "columns": [
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_watering_next_active": {
+          "name": "idx_threed_watering_next_active",
+          "columns": [
+            {
+              "expression": "next_watering",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "is_active",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "threed_watering_schedules_plant_id_threed_plants_id_fk": {
+          "name": "threed_watering_schedules_plant_id_threed_plants_id_fk",
+          "tableFrom": "threed_watering_schedules",
+          "tableTo": "threed_plants",
+          "columnsFrom": [
+            "plant_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "threed_watering_schedules_farmbot_id_threed_farmbots_id_fk": {
+          "name": "threed_watering_schedules_farmbot_id_threed_farmbots_id_fk",
+          "tableFrom": "threed_watering_schedules",
+          "tableTo": "threed_farmbots",
+          "columnsFrom": [
+            "farmbot_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "threed_watering_schedules_bed_id_threed_beds_id_fk": {
+          "name": "threed_watering_schedules_bed_id_threed_beds_id_fk",
+          "tableFrom": "threed_watering_schedules",
+          "tableTo": "threed_beds",
+          "columnsFrom": [
+            "bed_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "threed_watering_schedules_planting_id_threed_plantings_id_fk": {
+          "name": "threed_watering_schedules_planting_id_threed_plantings_id_fk",
+          "tableFrom": "threed_watering_schedules",
+          "tableTo": "threed_plantings",
+          "columnsFrom": [
+            "planting_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "threed_watering_schedules_schedule_id_unique": {
+          "name": "threed_watering_schedules_schedule_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "schedule_id"
           ]
         }
       },
@@ -3602,6 +4716,24 @@
         "dormant"
       ]
     },
+    "public.threed_model_type": {
+      "name": "threed_model_type",
+      "schema": "public",
+      "values": [
+        "procedural",
+        "gltf",
+        "glb",
+        "fbx",
+        "usdz",
+        "obj",
+        "herb-generic",
+        "vegetable-generic",
+        "flower-generic",
+        "fruit-generic",
+        "tree-generic",
+        "custom"
+      ]
+    },
     "public.threed_plant_status": {
       "name": "threed_plant_status",
       "schema": "public",
@@ -3654,6 +4786,18 @@
         "in_progress",
         "completed",
         "cancelled"
+      ]
+    },
+    "public.threed_watering_frequency": {
+      "name": "threed_watering_frequency",
+      "schema": "public",
+      "values": [
+        "daily",
+        "weekly",
+        "custom",
+        "moisture-based",
+        "hourly",
+        "bi-daily"
       ]
     }
   },
