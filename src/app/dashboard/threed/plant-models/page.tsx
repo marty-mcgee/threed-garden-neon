@@ -7,18 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Modal } from '@/components/ui/modal';
-import { plantModels, getPlantModel } from '@/components/threed/PlantModels';
+// import { plantModels, getPlantModel } from '@/components/threed/PlantModels';
 import { Plus, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 
 export default function PlantModelsAdminPage() {
   const [selectedPlant, setSelectedPlant] = useState<string | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   
-  const plantList = Object.keys(plantModels);
+  // const plantList = Object.keys(plantModels);
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      {/* <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-foreground">3D Plant Models Library</h1>
           <p className="text-sm text-muted-foreground">
@@ -55,7 +55,7 @@ export default function PlantModelsAdminPage() {
             </Card>
           );
         })}
-      </div>
+      </div> */}
       
       <Card>
         <CardContent className="p-4">
