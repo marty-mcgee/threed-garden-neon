@@ -49,7 +49,7 @@ import {
   Plus,
   Archive,
   Download,
-  Refresh,
+  RefreshCw,
   Sparkles,
   Users,
   Flower2,
@@ -71,7 +71,6 @@ interface ModelFile {
 
 interface Model {
   id: number;
-  plantId: number;
   modelName: string;
   modelType: string;
   filePath: string;
@@ -103,6 +102,12 @@ interface Model {
     commonName: string;
     scientificName: string;
     plantId: string;
+  };
+  character?: {
+    id: number;
+    name: string;
+    characterId: string;
+    type: string;
   };
 }
 
@@ -183,9 +188,26 @@ export default function ModelsContent() {
       setLoading(true);
       const response = await fetch('/api/threed/models?limit=100');
       const data = await response.json();
+      
+      console.log('📦 Full API response:', data);
+      
       if (data.success) {
-        setModels(data.data);
+        let modelsData = data.data;
+        
+        // If data is wrapped in an object with a models property
+        if (modelsData && modelsData.models) {
+          modelsData = modelsData.models;
+        }
+        
+        // If data is an array of objects where each has a 'model' property
+        if (modelsData && modelsData.length > 0 && modelsData[0].model) {
+          modelsData = modelsData.map((item: any) => item.model);
+        }
+        
+        console.log('📦 Processed models data:', modelsData);
+        setModels(modelsData || []);
       } else {
+        console.error('API error:', data.error);
         showToast('Failed to load models');
       }
     } catch (error) {
@@ -201,7 +223,6 @@ export default function ModelsContent() {
       const response = await fetch('/api/threed/plants?limit=1000&includeModel=false');
       const data = await response.json();
       if (data.success) {
-        // Handle nested data structure if needed
         let plantsData = data.data;
         if (plantsData.length > 0 && plantsData[0].plant) {
           plantsData = plantsData.map((item: any) => item.plant);
@@ -452,6 +473,97 @@ export default function ModelsContent() {
     }
   };
 
+  // Add these functions to your ModelsContent component
+  const handleAddFilesToModel = async () => {
+    if (!selectedModel) return;
+    
+    const hasFilesToAdd = uploadFiles.textures.length > 0 || uploadFiles.binaries.length > 0;
+    if (!hasFilesToAdd) {
+      showToast('Please select at least one texture or binary file to add');
+      return;
+    }
+
+    setAddingFiles(true);
+    setUploadProgress(0);
+
+    const uploadFormData = new FormData();
+    
+    uploadFiles.textures.forEach(file => {
+      uploadFormData.append('files', file);
+    });
+    uploadFiles.binaries.forEach(file => {
+      uploadFormData.append('files', file);
+    });
+
+    try {
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await fetch(`/api/threed/models/${selectedModel.id}/files`, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      const data = await response.json();
+      if (data.success) {
+        showToast(`Added ${uploadFiles.textures.length + uploadFiles.binaries.length} files to model!`);
+        // Reset file selection
+        setUploadFiles(prev => ({
+          ...prev,
+          textures: [],
+          binaries: [],
+        }));
+        // Refresh model data
+        await fetchModels();
+        // Refresh selected model data
+        const updatedModel = models.find(m => m.id === selectedModel.id);
+        if (updatedModel) {
+          setSelectedModel(updatedModel);
+        }
+      } else {
+        showToast(data.error || 'Failed to add files');
+      }
+    } catch (error) {
+      console.error('Add files error:', error);
+      showToast('Failed to add files: ' + error.message);
+    } finally {
+      setAddingFiles(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDeleteFile = async (fileId: number, fileName: string) => {
+    if (!selectedModel) return;
+    
+    if (!confirm(`Are you sure you want to delete "${fileName}"?`)) return;
+
+    try {
+      const response = await fetch(`/api/threed/models/${selectedModel.id}/files/${fileId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showToast(`Deleted ${fileName}`);
+        await fetchModels();
+        // Refresh selected model data
+        const updatedModel = models.find(m => m.id === selectedModel.id);
+        if (updatedModel) {
+          setSelectedModel(updatedModel);
+        }
+      } else {
+        showToast(data.error || 'Failed to delete file');
+      }
+    } catch (error) {
+      console.error('Delete file error:', error);
+      showToast('Failed to delete file');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       plantId: '',
@@ -480,7 +592,7 @@ export default function ModelsContent() {
   const openEditDialog = (model: Model) => {
     setSelectedModel(model);
     setFormData({
-      plantId: model.plantId?.toString() || '',
+      plantId: '',
       characterId: '',
       modelName: model.modelName,
       modelType: model.modelType,
@@ -504,12 +616,6 @@ export default function ModelsContent() {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  const getPlantName = (plantId?: number) => {
-    if (!plantId) return 'None';
-    const plant = plants.find(p => p.id === plantId);
-    return plant ? `${plant.commonName}` : `Plant ID: ${plantId}`;
   };
 
   const getTextureTypeIcon = (textureType?: string) => {
@@ -607,7 +713,7 @@ export default function ModelsContent() {
                 </p>
               </div>
 
-              {/* Plant Selection (if association type is plant) */}
+              {/* Plant Selection */}
               {associationType === 'plant' && (
                 <div className="space-y-2 border rounded-lg p-4">
                   <Label className="text-base font-semibold">Select Plant *</Label>
@@ -640,7 +746,7 @@ export default function ModelsContent() {
                 </div>
               )}
 
-              {/* Character Selection (if association type is character) */}
+              {/* Character Selection */}
               {associationType === 'character' && (
                 <div className="space-y-2 border rounded-lg p-4">
                   <Label className="text-base font-semibold">Select Character *</Label>
@@ -659,9 +765,6 @@ export default function ModelsContent() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Characters can have animations, movement patterns, and interactions.
-                  </p>
                 </div>
               )}
 
@@ -679,9 +782,6 @@ export default function ModelsContent() {
                     ✓ {uploadFiles.mainModel.name} ({formatFileSize(uploadFiles.mainModel.size)})
                   </p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Upload your main model file (GLTF, GLB, FBX, or OBJ format)
-                </p>
               </div>
 
               {/* Model Name */}
@@ -722,9 +822,6 @@ export default function ModelsContent() {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Upload texture files (base color, normal maps, roughness, metallic, emissive, occlusion)
-                </p>
               </div>
 
               {/* Binary Files */}
@@ -755,9 +852,6 @@ export default function ModelsContent() {
                     ))}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  Upload binary buffer files (.bin) if your model uses external buffers
-                </p>
               </div>
 
               <Tabs defaultValue="transform" className="w-full">
@@ -888,8 +982,571 @@ export default function ModelsContent() {
         </Dialog>
       </div>
 
-      {/* Models Table (rest of your table remains the same) */}
-      {/* ... rest of the component ... */}
+      {/* Models Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your 3D Models</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {models.length === 0 ? (
+            <div className="text-center py-12">
+              <FolderOpen className="mx-auto h-12 w-12 text-muted-foreground" />
+              <h3 className="mt-2 text-sm font-semibold">No models uploaded</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Get started by uploading your first 3D model
+              </p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setIsUploadDialogOpen(true)}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Upload Model
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Model Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Size</TableHead>
+                    <TableHead>Scale</TableHead>
+                    <TableHead>Used By</TableHead>
+                    <TableHead>Files</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {models.map((model) => (
+                    <TableRow key={model.id}>
+                      <TableCell className="font-medium">{model.modelName}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{model.modelType?.toUpperCase()}</Badge>
+                      </TableCell>
+                      <TableCell>{formatFileSize(model.fileSize)}</TableCell>
+                      <TableCell>{model.scale}x</TableCell>
+                      <TableCell>
+                        {model.usedByPlants && <Badge variant="secondary" className="mr-1">Plant</Badge>}
+                        {model.usedByCharacters && <Badge variant="secondary">Character</Badge>}
+                        {!model.usedByPlants && !model.usedByCharacters && (
+                          <Badge variant="outline">Unused</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <span>📦 1</span>
+                          {model.textureCount > 0 && (
+                            <span className="flex items-center gap-1">
+                              <FileImage className="h-3 w-3" />
+                              {model.textureCount}
+                            </span>
+                          )}
+                          {model.binaries && model.binaries.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Archive className="h-3 w-3" />
+                              {model.binaries.length}
+                            </span>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 ml-1"
+                            onClick={() => {
+                              setSelectedModel(model);
+                              setIsFilesDialogOpen(true);
+                            }}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={model.isActive ? "default" : "secondary"}>
+                          {model.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(model.filePath, '_blank')}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(model)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedModel(model);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Files Dialog */}
+      <Dialog open={isFilesDialogOpen} onOpenChange={setIsFilesDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Model Files: {selectedModel?.modelName}</DialogTitle>
+            <DialogDescription>
+              All files associated with this 3D model
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Main Model File */}
+            {selectedModel?.mainModelFile && (
+              <div className="border rounded-lg p-3">
+                <Label className="font-semibold">Main Model File</Label>
+                <div className="flex justify-between items-center mt-1">
+                  <div className="flex items-center gap-2">
+                    <span>🎯</span>
+                    <span className="text-sm">{selectedModel.mainModelFile.fileName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({formatFileSize(selectedModel.mainModelFile.fileSize)})
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => window.open(selectedModel.mainModelFile?.filePath, '_blank')}
+                  >
+                    <Eye className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Texture Files */}
+            {selectedModel?.textures && selectedModel.textures.length > 0 && (
+              <div className="border rounded-lg p-3">
+                <Label className="font-semibold">Texture Files</Label>
+                <div className="space-y-2 mt-2">
+                  {selectedModel.textures.map((texture, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span>{getTextureTypeIcon(texture.textureType)}</span>
+                        <span className="text-sm">{texture.fileName}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {texture.textureType || 'baseColor'}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatFileSize(texture.fileSize)})
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(texture.filePath, '_blank')}
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Binary Files */}
+            {selectedModel?.binaries && selectedModel.binaries.length > 0 && (
+              <div className="border rounded-lg p-3">
+                <Label className="font-semibold">Binary Buffer Files</Label>
+                <div className="space-y-2 mt-2">
+                  {selectedModel.binaries.map((binary, idx) => (
+                    <div key={idx} className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <span>🔧</span>
+                        <span className="text-sm">{binary.fileName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          ({formatFileSize(binary.fileSize)})
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(binary.filePath, '_blank')}
+                      >
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsFilesDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      {/* Enhanced Edit Dialog with File Management */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Model: {selectedModel?.modelName}</DialogTitle>
+            <DialogDescription>
+              Update model properties, transform settings, and manage associated files
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Tabs defaultValue="properties" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="properties">Properties</TabsTrigger>
+              <TabsTrigger value="transform">Transform</TabsTrigger>
+              <TabsTrigger value="animation">Animation</TabsTrigger>
+              <TabsTrigger value="files">Files ({selectedModel?.files?.length || 0})</TabsTrigger>
+            </TabsList>
+            
+            {/* Properties Tab */}
+            <TabsContent value="properties" className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Model Name</Label>
+                <Input
+                  value={formData.modelName}
+                  onChange={(e) => setFormData(prev => ({ ...prev, modelName: e.target.value }))}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Model Type</Label>
+                <select
+                  value={formData.modelType}
+                  onChange={(e) => setFormData(prev => ({ ...prev, modelType: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg bg-background"
+                >
+                  <option value="glb">GLB</option>
+                  <option value="gltf">GLTF</option>
+                  <option value="fbx">FBX</option>
+                  <option value="obj">OBJ</option>
+                </select>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="editIsActive"
+                  checked={selectedModel?.isActive}
+                  onChange={(e) => {
+                    if (selectedModel) {
+                      setSelectedModel({ ...selectedModel, isActive: e.target.checked });
+                      setFormData(prev => ({ ...prev, isActive: e.target.checked }));
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="editIsActive">Active (visible and usable)</Label>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Metadata (JSON)</Label>
+                <Textarea
+                  value={formData.metadata}
+                  onChange={(e) => setFormData(prev => ({ ...prev, metadata: e.target.value }))}
+                  rows={4}
+                  placeholder='{"author": "Name", "license": "CC-BY", "tags": ["vegetable", "plant"]}'
+                />
+              </div>
+            </TabsContent>
+            
+            {/* Transform Tab */}
+            <TabsContent value="transform" className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Scale</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formData.scale}
+                    onChange={(e) => setFormData(prev => ({ ...prev, scale: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Global scale multiplier</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rotation Y (degrees)</Label>
+                  <Input
+                    type="number"
+                    step="15"
+                    value={formData.rotationY}
+                    onChange={(e) => setFormData(prev => ({ ...prev, rotationY: e.target.value }))}
+                  />
+                  <p className="text-xs text-muted-foreground">Y-axis rotation offset</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Offset X</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formData.offsetX}
+                    onChange={(e) => setFormData(prev => ({ ...prev, offsetX: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Offset Y</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formData.offsetY}
+                    onChange={(e) => setFormData(prev => ({ ...prev, offsetY: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Offset Z</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={formData.offsetZ}
+                    onChange={(e) => setFormData(prev => ({ ...prev, offsetZ: e.target.value }))}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-2 mt-2">
+                <input
+                  type="checkbox"
+                  id="editHasLOD"
+                  checked={formData.hasLOD === true}
+                  onChange={(e) => setFormData(prev => ({ ...prev, hasLOD: e.target.checked }))}
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="editHasLOD">Has Level of Detail (LOD) variants</Label>
+              </div>
+            </TabsContent>
+            
+            {/* Animation Tab */}
+            <TabsContent value="animation" className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Animations (JSON array)</Label>
+                <Textarea
+                  value={formData.animations}
+                  onChange={(e) => setFormData(prev => ({ ...prev, animations: e.target.value }))}
+                  rows={3}
+                  placeholder='["idle", "walk", "run", "jump"]'
+                />
+                <p className="text-xs text-muted-foreground">
+                  List of available animations for this model
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Default Animation</Label>
+                <Input
+                  value={formData.defaultAnimation}
+                  onChange={(e) => setFormData(prev => ({ ...prev, defaultAnimation: e.target.value }))}
+                  placeholder="idle"
+                />
+              </div>
+            </TabsContent>
+            
+            {/* Files Management Tab */}
+            <TabsContent value="files" className="space-y-4 py-4">
+              {/* Existing Files Section */}
+              {selectedModel?.files && selectedModel.files.length > 0 ? (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Existing Files</Label>
+                  {selectedModel.files.map((file) => (
+                    <div key={file.id} className="border rounded-lg p-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          {file.fileType === 'model' && <span>🎯</span>}
+                          {file.fileType === 'texture' && <span>{getTextureTypeIcon(file.textureType)}</span>}
+                          {file.fileType === 'binary' && <span>🔧</span>}
+                          <div>
+                            <p className="text-sm font-medium">{file.fileName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {file.fileType} • {formatFileSize(file.fileSize)} • 
+                              {file.fileType === 'texture' && ` ${file.textureType || 'baseColor'}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => window.open(file.filePath, '_blank')}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          {file.fileType !== 'model' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteFile(file.id, file.fileName)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">No files associated with this model</p>
+              )}
+              
+              {/* Add New Files Section */}
+              <div className="border-t pt-4 mt-4">
+                <Label className="text-base font-semibold mb-2 block">Add New Files</Label>
+                
+                {/* Add Textures */}
+                <div className="space-y-2 border rounded-lg p-4 mb-3">
+                  <Label className="font-medium">Add Texture Files</Label>
+                  <Input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    multiple
+                    onChange={handleTextureSelect}
+                    className="cursor-pointer"
+                  />
+                  {uploadFiles.textures.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      <p className="text-sm font-medium">Textures to add:</p>
+                      {uploadFiles.textures.map((file, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm">
+                          <span>📷 {file.name} ({formatFileSize(file.size)})</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeTexture(idx)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload additional texture files (base color, normal maps, roughness, metallic, emissive, occlusion)
+                  </p>
+                </div>
+
+                {/* Add Binary Files */}
+                <div className="space-y-2 border rounded-lg p-4 mb-3">
+                  <Label className="font-medium">Add Binary Files</Label>
+                  <Input
+                    type="file"
+                    accept=".bin"
+                    multiple
+                    onChange={handleBinarySelect}
+                    className="cursor-pointer"
+                  />
+                  {uploadFiles.binaries.length > 0 && (
+                    <div className="space-y-1 mt-2">
+                      <p className="text-sm font-medium">Binary files to add:</p>
+                      {uploadFiles.binaries.map((file, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-sm">
+                          <span>🔧 {file.name} ({formatFileSize(file.size)})</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeBinary(idx)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Upload binary buffer files (.bin) if your model uses external buffers
+                  </p>
+                </div>
+
+                {/* Add Files Button */}
+                {(uploadFiles.textures.length > 0 || uploadFiles.binaries.length > 0) && (
+                  <div className="mt-4">
+                    <Button 
+                      onClick={handleAddFilesToModel} 
+                      disabled={addingFiles}
+                      className="w-full"
+                    >
+                      {addingFiles ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Adding Files... {uploadProgress}%
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add {uploadFiles.textures.length + uploadFiles.binaries.length} File(s) to Model
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsEditDialogOpen(false);
+              resetForm();
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdate}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Model</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{selectedModel?.modelName}"? This action cannot be undone.
+              {selectedModel?.usedByPlants && (
+                <p className="mt-2 text-red-500 font-semibold">
+                  Warning: This model is used by one or more plants. Deleting it will remove the model from those plants.
+                </p>
+              )}
+              {selectedModel?.usedByCharacters && (
+                <p className="mt-2 text-red-500 font-semibold">
+                  Warning: This model is used by one or more characters. Deleting it will remove the model from those characters.
+                </p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

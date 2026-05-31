@@ -1,8 +1,17 @@
-// src/app/api/threed/characters/route.ts
+// src/app/api/threed/characters/route.ts - Fixed version
+
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
 import { threedCharacters, threedModels, threedBeds } from '@/lib/auth/schema';
 import { eq, desc, sql } from 'drizzle-orm';
+
+// Helper function to safely handle enum values
+function safeEnumValue<T>(value: T | null | undefined, defaultValue: T): T {
+  if (value === null || value === undefined || value === '') {
+    return defaultValue;
+  }
+  return value;
+}
 
 // GET /api/threed/characters - Fetch characters with optional filtering
 export async function GET(request: NextRequest) {
@@ -10,7 +19,11 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const type = searchParams.get('type');
     const status = searchParams.get('status');
+    const movementType = searchParams.get('movementType');
     const bedId = searchParams.get('bedId');
+    const visible = searchParams.get('visible');
+    const weatherSensitivity = searchParams.get('weatherSensitivity');
+    const interactable = searchParams.get('interactable');
     const includeModel = searchParams.get('includeModel') !== 'false';
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -18,7 +31,6 @@ export async function GET(request: NextRequest) {
     let query: any;
 
     if (includeModel) {
-      // Join with models to get full model data
       query = db.select({
         character: {
           id: threedCharacters.id,
@@ -31,13 +43,23 @@ export async function GET(request: NextRequest) {
           animations: threedCharacters.animations,
           defaultAnimation: threedCharacters.defaultAnimation,
           animationSpeed: threedCharacters.animationSpeed,
-          isMovable: threedCharacters.isMovable,
+          movementType: threedCharacters.movementType,
           movementPattern: threedCharacters.movementPattern,
           movementRadius: threedCharacters.movementRadius,
           movementSpeed: threedCharacters.movementSpeed,
+          patrolWaypoints: threedCharacters.patrolWaypoints,
+          followTarget: threedCharacters.followTarget,
+          followDistance: threedCharacters.followDistance,
+          teleportPositions: threedCharacters.teleportPositions,
+          teleportInterval: threedCharacters.teleportInterval,
           interactable: threedCharacters.interactable,
           interactionMessage: threedCharacters.interactionMessage,
           soundEffect: threedCharacters.soundEffect,
+          defaultEmote: threedCharacters.defaultEmote,
+          emoteOnInteract: threedCharacters.emoteOnInteract,
+          activeStartHour: threedCharacters.activeStartHour,
+          activeEndHour: threedCharacters.activeEndHour,
+          weatherSensitivity: threedCharacters.weatherSensitivity,
           bedId: threedCharacters.bedId,
           positionX: threedCharacters.positionX,
           positionY: threedCharacters.positionY,
@@ -46,6 +68,8 @@ export async function GET(request: NextRequest) {
           scale: threedCharacters.scale,
           scaleMultiplier: threedCharacters.scaleMultiplier,
           colorTint: threedCharacters.colorTint,
+          visible: threedCharacters.visible,
+          visibleDistance: threedCharacters.visibleDistance,
           isActive: threedCharacters.isActive,
           metadata: threedCharacters.metadata,
           createdAt: threedCharacters.createdAt,
@@ -56,10 +80,10 @@ export async function GET(request: NextRequest) {
           modelName: threedModels.modelName,
           modelType: threedModels.modelType,
           filePath: threedModels.filePath,
+          thumbnailUrl: threedModels.thumbnailUrl,
           scale: threedModels.scale,
           rotationY: threedModels.rotationY,
           animations: threedModels.animations,
-          defaultAnimation: threedModels.defaultAnimation,
         },
         bed: {
           id: threedBeds.id,
@@ -77,15 +101,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filters
-    if (type) {
-      query = query.where(eq(threedCharacters.type, type as any));
-    }
-    if (status) {
-      query = query.where(eq(threedCharacters.status, status as any));
-    }
-    if (bedId) {
-      query = query.where(eq(threedCharacters.bedId, parseInt(bedId)));
-    }
+    if (type) query = query.where(eq(threedCharacters.type, type as any));
+    if (status) query = query.where(eq(threedCharacters.status, status as any));
+    if (movementType) query = query.where(eq(threedCharacters.movementType, movementType as any));
+    if (bedId) query = query.where(eq(threedCharacters.bedId, parseInt(bedId)));
+    if (visible) query = query.where(eq(threedCharacters.visible, visible === 'true'));
+    if (weatherSensitivity) query = query.where(eq(threedCharacters.weatherSensitivity, weatherSensitivity as any));
+    if (interactable) query = query.where(eq(threedCharacters.interactable, interactable === 'true'));
 
     // Get total count
     const countResult = await db.select({ count: sql<number>`count(*)` })
@@ -101,11 +123,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: includeModel ? characters : characters,
-      pagination: {
-        limit,
-        offset,
-        total: total?.count || 0,
-      },
+      pagination: { limit, offset, total: total?.count || 0 },
     });
   } catch (error) {
     console.error('Error fetching characters:', error);
@@ -116,12 +134,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/threed/characters - Create a new character
+// POST /api/threed/characters - Enhanced creation with proper enum handling
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validate required fields
     if (!body.characterId || !body.name) {
       return NextResponse.json(
         { success: false, error: 'characterId and name are required' },
@@ -129,34 +146,42 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Create character
+    // Safely handle enum values - ensure no empty strings
+    const defaultAnimation = safeEnumValue(body.defaultAnimation, undefined);
+    const defaultEmote = safeEnumValue(body.defaultEmote, 'none');
+    const emoteOnInteract = safeEnumValue(body.emoteOnInteract, 'happy');
+    const movementType = safeEnumValue(body.movementType, 'stationary');
+    const weatherSensitivity = safeEnumValue(body.weatherSensitivity, 'all');
+    const type = safeEnumValue(body.type, 'animal');
+    const status = safeEnumValue(body.status, 'active');
+    
     const [newCharacter] = await db.insert(threedCharacters).values({
       characterId: body.characterId,
       name: body.name,
-      description: body.description,
-      type: body.type || 'animal',
-      status: body.status || 'active',
-      
-      // Foreign key to model
+      description: body.description || null,
+      type: type,
+      status: status,
       modelId: body.modelId || null,
-      
-      // Character-specific fields
       animations: body.animations || [],
-      defaultAnimation: body.defaultAnimation,
+      defaultAnimation: defaultAnimation,
       animationSpeed: body.animationSpeed || 1.0,
-      
-      // Movement/Behavior
-      isMovable: body.isMovable || false,
-      movementPattern: body.movementPattern,
-      movementRadius: body.movementRadius,
+      movementType: movementType,
+      movementPattern: body.movementPattern || null,
+      movementRadius: body.movementRadius || 5,
       movementSpeed: body.movementSpeed || 0.5,
-      
-      // Interaction
+      patrolWaypoints: body.patrolWaypoints || [],
+      followTarget: body.followTarget || null,
+      followDistance: body.followDistance || 2.0,
+      teleportPositions: body.teleportPositions || [],
+      teleportInterval: body.teleportInterval || 30,
       interactable: body.interactable !== false,
-      interactionMessage: body.interactionMessage,
-      soundEffect: body.soundEffect,
-      
-      // Position in garden
+      interactionMessage: body.interactionMessage || null,
+      soundEffect: body.soundEffect || null,
+      defaultEmote: defaultEmote,
+      emoteOnInteract: emoteOnInteract,
+      activeStartHour: body.activeStartHour ?? 0,
+      activeEndHour: body.activeEndHour ?? 23,
+      weatherSensitivity: weatherSensitivity,
       bedId: body.bedId || null,
       positionX: body.positionX || 0,
       positionY: body.positionY || 0,
@@ -164,14 +189,13 @@ export async function POST(request: NextRequest) {
       rotation: body.rotation || 0,
       scale: body.scale || 1,
       scaleMultiplier: body.scaleMultiplier || 1,
-      colorTint: body.colorTint,
-      
-      // Metadata
+      colorTint: body.colorTint || null,
+      visible: body.visible !== false,
+      visibleDistance: body.visibleDistance || 30,
       isActive: body.isActive !== false,
       metadata: body.metadata || {},
     }).returning();
     
-    // Update model usage tracking if a model was assigned
     if (body.modelId) {
       await db.update(threedModels)
         .set({ usedByCharacters: true })
@@ -182,13 +206,13 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating character:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to create character' },
+      { success: false, error: 'Failed to create character', details: error.message },
       { status: 500 }
     );
   }
 }
 
-// PUT /api/threed/characters - Update a character
+// PUT /api/threed/characters - Update with proper enum handling
 export async function PUT(request: NextRequest) {
   try {
     const url = new URL(request.url);
@@ -208,33 +232,54 @@ export async function PUT(request: NextRequest) {
       .from(threedCharacters)
       .where(eq(threedCharacters.id, parseInt(id)));
     
+    // Safely handle enum values
+    const defaultAnimation = safeEnumValue(body.defaultAnimation, undefined);
+    const defaultEmote = safeEnumValue(body.defaultEmote, 'none');
+    const emoteOnInteract = safeEnumValue(body.emoteOnInteract, 'happy');
+    const movementType = safeEnumValue(body.movementType, 'stationary');
+    const weatherSensitivity = safeEnumValue(body.weatherSensitivity, 'all');
+    const type = safeEnumValue(body.type, 'animal');
+    const status = safeEnumValue(body.status, 'active');
+    
     const [updated] = await db.update(threedCharacters)
       .set({
         name: body.name,
-        description: body.description,
-        type: body.type,
-        status: body.status,
+        description: body.description || null,
+        type: type,
+        status: status,
         modelId: body.modelId || null,
-        animations: body.animations,
-        defaultAnimation: body.defaultAnimation,
-        animationSpeed: body.animationSpeed,
-        isMovable: body.isMovable,
-        movementPattern: body.movementPattern,
-        movementRadius: body.movementRadius,
-        movementSpeed: body.movementSpeed,
-        interactable: body.interactable,
-        interactionMessage: body.interactionMessage,
-        soundEffect: body.soundEffect,
-        bedId: body.bedId,
-        positionX: body.positionX,
-        positionY: body.positionY,
-        positionZ: body.positionZ,
-        rotation: body.rotation,
-        scale: body.scale,
-        scaleMultiplier: body.scaleMultiplier,
-        colorTint: body.colorTint,
-        isActive: body.isActive,
-        metadata: body.metadata,
+        animations: body.animations || [],
+        defaultAnimation: defaultAnimation,
+        animationSpeed: body.animationSpeed || 1.0,
+        movementType: movementType,
+        movementPattern: body.movementPattern || null,
+        movementRadius: body.movementRadius || 5,
+        movementSpeed: body.movementSpeed || 0.5,
+        patrolWaypoints: body.patrolWaypoints || [],
+        followTarget: body.followTarget || null,
+        followDistance: body.followDistance || 2.0,
+        teleportPositions: body.teleportPositions || [],
+        teleportInterval: body.teleportInterval || 30,
+        interactable: body.interactable !== false,
+        interactionMessage: body.interactionMessage || null,
+        soundEffect: body.soundEffect || null,
+        defaultEmote: defaultEmote,
+        emoteOnInteract: emoteOnInteract,
+        activeStartHour: body.activeStartHour ?? 0,
+        activeEndHour: body.activeEndHour ?? 23,
+        weatherSensitivity: weatherSensitivity,
+        bedId: body.bedId || null,
+        positionX: body.positionX || 0,
+        positionY: body.positionY || 0,
+        positionZ: body.positionZ || 0,
+        rotation: body.rotation || 0,
+        scale: body.scale || 1,
+        scaleMultiplier: body.scaleMultiplier || 1,
+        colorTint: body.colorTint || null,
+        visible: body.visible !== false,
+        visibleDistance: body.visibleDistance || 30,
+        isActive: body.isActive !== false,
+        metadata: body.metadata || {},
         updatedAt: new Date(),
       })
       .where(eq(threedCharacters.id, parseInt(id)))
@@ -242,7 +287,6 @@ export async function PUT(request: NextRequest) {
     
     // Update model usage tracking
     if (oldCharacter?.modelId !== body.modelId) {
-      // Check if old model is still used by any characters
       if (oldCharacter?.modelId) {
         const otherCharacters = await db.select({ count: sql<number>`count(*)` })
           .from(threedCharacters)
@@ -255,7 +299,6 @@ export async function PUT(request: NextRequest) {
         }
       }
       
-      // Mark new model as used
       if (body.modelId) {
         await db.update(threedModels)
           .set({ usedByCharacters: true })
@@ -267,7 +310,7 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     console.error('Error updating character:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update character' },
+      { success: false, error: 'Failed to update character', details: error.message },
       { status: 500 }
     );
   }

@@ -510,7 +510,6 @@ export const threedModels = pgTable('threed_models', {
   modelType: modelTypeEnum('model_type').notNull(),
   filePath: varchar('file_path', { length: 500 }).notNull(),
   fileSize: integer('file_size'), // in bytes
-  thumbnailUrl: text('thumbnail_url'),
   
   // Model properties
   scale: decimal('scale', { precision: 5, scale: 2 }).default('1.0'),
@@ -1058,22 +1057,7 @@ export const characterAnimationEnum = pgEnum('threed_character_animation', [
   'idle', 'walk', 'run', 'fly', 'dance', 'sway', 'float', 'spin', 'bounce'
 ]);
 
-// src/lib/auth/schema.ts - Add new enums and fields to threedCharacters only
-
-// New enums for characters
-export const characterMovementTypeEnum = pgEnum('threed_character_movement_type', [
-  'stationary', 'wander', 'patrol', 'circle', 'follow', 'teleport'
-]);
-
-export const characterWeatherSensitivityEnum = pgEnum('threed_character_weather_sensitivity', [
-  'all', 'sunny_only', 'rainy_only', 'no_rain', 'no_snow'
-]);
-
-export const characterEmoteEnum = pgEnum('threed_character_emote', [
-  'none', 'happy', 'sad', 'surprised', 'angry', 'wave', 'dance', 'sleep'
-]);
-
-// Update threedCharacters table with new fields
+// New threed_characters table
 export const threedCharacters = pgTable('threed_characters', {
   id: serial('id').primaryKey(),
   characterId: varchar('character_id', { length: 50 }).unique().notNull(),
@@ -1082,63 +1066,36 @@ export const threedCharacters = pgTable('threed_characters', {
   type: characterTypeEnum('type').default('animal'),
   status: characterStatusEnum('status').default('active'),
   
-  // Model relationship
+  // Relationship to model (shared with plants)
   modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'set null' }),
   
-  // Animation
+  // Character-specific fields
   animations: characterAnimationEnum('animations').array().default([]),
   defaultAnimation: characterAnimationEnum('default_animation'),
   animationSpeed: decimal('animation_speed', { precision: 4, scale: 2 }).default('1.0'),
   
-  // Enhanced Movement
+  // Movement/Behavior
   isMovable: boolean('is_movable').default(false),
-  movementType: characterMovementTypeEnum('movement_type').default('stationary'),
-  movementPattern: varchar('movement_pattern', { length: 50 }), // Legacy, keep for compatibility
+  movementPattern: varchar('movement_pattern', { length: 50 }), // 'patrol', 'wander', 'circle', 'follow'
   movementRadius: decimal('movement_radius', { precision: 5, scale: 2 }),
   movementSpeed: decimal('movement_speed', { precision: 4, scale: 2 }).default('0.5'),
   
-  // New: Patrol waypoints (store as JSON array of {x, y, z})
-  patrolWaypoints: jsonb('patrol_waypoints').default([]),
-  
-  // New: Follow target (could be plantId, characterId, or 'camera')
-  followTarget: varchar('follow_target', { length: 50 }),
-  followDistance: decimal('follow_distance', { precision: 4, scale: 2 }).default('2.0'),
-  
-  // New: Teleport positions
-  teleportPositions: jsonb('teleport_positions').default([]),
-  teleportInterval: integer('teleport_interval'), // seconds between teleports
-  
-  // Enhanced Interaction
+  // Interaction
   interactable: boolean('interactable').default(true),
   interactionMessage: text('interaction_message'),
   soundEffect: varchar('sound_effect', { length: 255 }),
   
-  // New: Emote system
-  defaultEmote: characterEmoteEnum('default_emote').default('none'),
-  emoteOnInteract: characterEmoteEnum('emote_on_interact').default('happy'),
-  
-  // New: Time-based activation
-  activeStartHour: integer('active_start_hour'), // 0-23
-  activeEndHour: integer('active_end_hour'),
-  
-  // New: Weather sensitivity
-  weatherSensitivity: characterWeatherSensitivityEnum('weather_sensitivity').default('all'),
-  
-  // Position (absolute world coordinates)
+  // Position in garden
   bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'set null' }),
   positionX: decimal('position_x', { precision: 8, scale: 2 }).default('0'),
   positionY: decimal('position_y', { precision: 8, scale: 2 }).default('0'),
   positionZ: decimal('position_z', { precision: 8, scale: 2 }).default('0'),
   rotation: decimal('rotation', { precision: 8, scale: 2 }).default('0'),
-  
-  // Scale and appearance
   scale: decimal('scale', { precision: 5, scale: 2 }).default('1'),
+  
+  // Scale and appearance overrides
   scaleMultiplier: decimal('scale_multiplier', { precision: 5, scale: 2 }).default('1'),
   colorTint: varchar('color_tint', { length: 20 }),
-  
-  // New: Visibility
-  visible: boolean('visible').default(true),
-  visibleDistance: decimal('visible_distance', { precision: 5, scale: 2 }).default('30.0'),
   
   // Metadata
   isActive: boolean('is_active').default(true),
@@ -1150,10 +1107,8 @@ export const threedCharacters = pgTable('threed_characters', {
   nameIdx: index('idx_threed_characters_name').on(table.name),
   typeIdx: index('idx_threed_characters_type').on(table.type),
   statusIdx: index('idx_threed_characters_status').on(table.status),
-  movementTypeIdx: index('idx_threed_characters_movement_type').on(table.movementType),
   modelIdx: index('idx_threed_characters_model').on(table.modelId),
   bedIdx: index('idx_threed_characters_bed').on(table.bedId),
-  visibleIdx: index('idx_threed_characters_visible').on(table.visible),
 }));
 
 // Add character-specific file to threedModelFiles if needed
