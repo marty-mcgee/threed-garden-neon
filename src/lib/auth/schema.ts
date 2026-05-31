@@ -449,18 +449,8 @@ export const threedPlants = pgTable('threed_plants', {
   type: plantTypeEnum('type').default('Vegetable'),
   status: plantStatusEnum('status').default('active'),
   
-  // 3D Model fields - ENHANCED
-  modelType: modelTypeEnum('model_type').default('procedural'),
-  modelPath: varchar('model_path', { length: 500 }), // URL or path to GLTF/GLB
-  modelMetadata: jsonb('model_metadata').default({}), // Store scale, rotation, offsets, animations
-  isCustomModel: boolean('is_custom_model').default(false),
-  modelVersion: integer('model_version').default(1),
-  
-  // Legacy model fields (kept for backward compatibility)
-  customModelUrl: text('custom_model_url'),
-  modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1'),
-  foliageColor: varchar('foliage_color', { length: 20 }).default('#32CD32'),
-  fruitColor: varchar('fruit_color', { length: 20 }).default('#FF6347'),
+  // Relationship to model (shared with characters)
+  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'set null' }),
   
   // Growth parameters
   growthHabit: varchar('growth_habit', { length: 50 }),
@@ -503,7 +493,7 @@ export const threedPlants = pgTable('threed_plants', {
   commonNameIdx: index('idx_threed_plants_common_name').on(table.commonName),
   typeIdx: index('idx_threed_plants_type').on(table.type),
   statusIdx: index('idx_threed_plants_status').on(table.status),
-  modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
+  // modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
 }));
 
 // ============================================
@@ -511,8 +501,11 @@ export const threedPlants = pgTable('threed_plants', {
 // ============================================
 export const threedModels = pgTable('threed_models', {
   id: serial('id').primaryKey(),
-  plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'cascade' }),
   
+  // Add these to track what uses this model
+  usedByPlants: boolean('used_by_plants').default(false),
+  usedByCharacters: boolean('used_by_characters').default(false),
+
   modelName: varchar('model_name', { length: 255 }).notNull(),
   modelType: modelTypeEnum('model_type').notNull(),
   filePath: varchar('file_path', { length: 500 }).notNull(),
@@ -550,7 +543,7 @@ export const threedModels = pgTable('threed_models', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
-  plantIdIdx: index('idx_threed_models_plant_id').on(table.plantId),
+  // plantIdIdx: index('idx_threed_models_plant_id').on(table.plantId),
   modelTypeIdx: index('idx_threed_models_type').on(table.modelType),
   activeIdx: index('idx_threed_models_active').on(table.isActive),
 }));
@@ -906,10 +899,14 @@ export const threedPlantsRelations = relations(threedPlants, ({ many }) => ({
   wateringSchedules: many(threedWateringSchedules),
 }));
 
-export const threedModelsRelations = relations(threedModels, ({ one }) => ({
+export const threedModelsRelations = relations(threedModels, ({ one, many }) => ({
   plant: one(threedPlants, {
-    fields: [threedModels.plantId],
-    references: [threedPlants.id],
+    fields: [threedModels.id],
+    references: [threedPlants.modelId],
+  }),
+  character: one(threedCharacters, {
+    fields: [threedModels.id],
+    references: [threedCharacters.modelId],
   }),
 }));
 
@@ -1043,4 +1040,93 @@ export const threedModelFiles = pgTable('threed_model_files', {
 // ============================================
 // ## Schema Updated 2026-05-30
 // ## Added model files, so models can have multiple files
+// ============================================
+
+// ============================================
+// ENUMS for Characters
+// ============================================
+export const characterTypeEnum = pgEnum('threed_character_type', [
+  'animal', 'bird', 'insect', 'mythical', 'human', 'robot', 'decoration'
+]);
+
+export const characterStatusEnum = pgEnum('threed_character_status', [
+  'active', 'idle', 'sleeping', 'moving', 'hidden'
+]);
+
+export const characterAnimationEnum = pgEnum('threed_character_animation', [
+  'idle', 'walk', 'run', 'fly', 'dance', 'sway', 'float', 'spin', 'bounce'
+]);
+
+// New threed_characters table
+export const threedCharacters = pgTable('threed_characters', {
+  id: serial('id').primaryKey(),
+  characterId: varchar('character_id', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: characterTypeEnum('type').default('animal'),
+  status: characterStatusEnum('status').default('active'),
+  
+  // Relationship to model (shared with plants)
+  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'set null' }),
+  
+  // Character-specific fields
+  animations: characterAnimationEnum('animations').array().default([]),
+  defaultAnimation: characterAnimationEnum('default_animation'),
+  animationSpeed: decimal('animation_speed', { precision: 4, scale: 2 }).default('1.0'),
+  
+  // Movement/Behavior
+  isMovable: boolean('is_movable').default(false),
+  movementPattern: varchar('movement_pattern', { length: 50 }), // 'patrol', 'wander', 'circle', 'follow'
+  movementRadius: decimal('movement_radius', { precision: 5, scale: 2 }),
+  movementSpeed: decimal('movement_speed', { precision: 4, scale: 2 }).default('0.5'),
+  
+  // Interaction
+  interactable: boolean('interactable').default(true),
+  interactionMessage: text('interaction_message'),
+  soundEffect: varchar('sound_effect', { length: 255 }),
+  
+  // Position in garden
+  bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'set null' }),
+  positionX: decimal('position_x', { precision: 8, scale: 2 }).default('0'),
+  positionY: decimal('position_y', { precision: 8, scale: 2 }).default('0'),
+  positionZ: decimal('position_z', { precision: 8, scale: 2 }).default('0'),
+  rotation: decimal('rotation', { precision: 8, scale: 2 }).default('0'),
+  scale: decimal('scale', { precision: 5, scale: 2 }).default('1'),
+  
+  // Scale and appearance overrides
+  scaleMultiplier: decimal('scale_multiplier', { precision: 5, scale: 2 }).default('1'),
+  colorTint: varchar('color_tint', { length: 20 }),
+  
+  // Metadata
+  isActive: boolean('is_active').default(true),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  characterIdIdx: uniqueIndex('idx_threed_characters_character_id').on(table.characterId),
+  nameIdx: index('idx_threed_characters_name').on(table.name),
+  typeIdx: index('idx_threed_characters_type').on(table.type),
+  statusIdx: index('idx_threed_characters_status').on(table.status),
+  modelIdx: index('idx_threed_characters_model').on(table.modelId),
+  bedIdx: index('idx_threed_characters_bed').on(table.bedId),
+}));
+
+// Add character-specific file to threedModelFiles if needed
+// (no changes needed - model files work the same)
+
+// Update relationships
+export const threedCharactersRelations = relations(threedCharacters, ({ one }) => ({
+  model: one(threedModels, {
+    fields: [threedCharacters.modelId],
+    references: [threedModels.id],
+  }),
+  bed: one(threedBeds, {
+    fields: [threedCharacters.bedId],
+    references: [threedBeds.id],
+  }),
+}));
+
+// ============================================
+// ## Schema Updated 2026-05-31
+// ## Added characters
 // ============================================

@@ -1,5 +1,5 @@
 {
-  "id": "8dc6bb2b-a893-4644-93f6-2e3907339adc",
+  "id": "673a1080-9804-409b-8414-4c7084c7eadd",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2015,6 +2015,340 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.threed_characters": {
+      "name": "threed_characters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "type": {
+          "name": "type",
+          "type": "threed_character_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'animal'"
+        },
+        "status": {
+          "name": "status",
+          "type": "threed_character_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'active'"
+        },
+        "model_id": {
+          "name": "model_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "animations": {
+          "name": "animations",
+          "type": "threed_character_animation[]",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'"
+        },
+        "default_animation": {
+          "name": "default_animation",
+          "type": "threed_character_animation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "animation_speed": {
+          "name": "animation_speed",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1.0'"
+        },
+        "is_movable": {
+          "name": "is_movable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "movement_pattern": {
+          "name": "movement_pattern",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "movement_radius": {
+          "name": "movement_radius",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "movement_speed": {
+          "name": "movement_speed",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0.5'"
+        },
+        "interactable": {
+          "name": "interactable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "interaction_message": {
+          "name": "interaction_message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sound_effect": {
+          "name": "sound_effect",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "bed_id": {
+          "name": "bed_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "position_x": {
+          "name": "position_x",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "position_y": {
+          "name": "position_y",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "position_z": {
+          "name": "position_z",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "rotation": {
+          "name": "rotation",
+          "type": "numeric(8, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "scale": {
+          "name": "scale",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1'"
+        },
+        "scale_multiplier": {
+          "name": "scale_multiplier",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'1'"
+        },
+        "color_tint": {
+          "name": "color_tint",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'{}'::jsonb"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_threed_characters_character_id": {
+          "name": "idx_threed_characters_character_id",
+          "columns": [
+            {
+              "expression": "character_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_characters_name": {
+          "name": "idx_threed_characters_name",
+          "columns": [
+            {
+              "expression": "name",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_characters_type": {
+          "name": "idx_threed_characters_type",
+          "columns": [
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_characters_status": {
+          "name": "idx_threed_characters_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_characters_model": {
+          "name": "idx_threed_characters_model",
+          "columns": [
+            {
+              "expression": "model_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_threed_characters_bed": {
+          "name": "idx_threed_characters_bed",
+          "columns": [
+            {
+              "expression": "bed_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "threed_characters_model_id_threed_models_id_fk": {
+          "name": "threed_characters_model_id_threed_models_id_fk",
+          "tableFrom": "threed_characters",
+          "tableTo": "threed_models",
+          "columnsFrom": [
+            "model_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "threed_characters_bed_id_threed_beds_id_fk": {
+          "name": "threed_characters_bed_id_threed_beds_id_fk",
+          "tableFrom": "threed_characters",
+          "tableTo": "threed_beds",
+          "columnsFrom": [
+            "bed_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "threed_characters_character_id_unique": {
+          "name": "threed_characters_character_id_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "character_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.threed_farmbot_logs": {
       "name": "threed_farmbot_logs",
       "schema": "",
@@ -2611,11 +2945,19 @@
           "primaryKey": true,
           "notNull": true
         },
-        "plant_id": {
-          "name": "plant_id",
-          "type": "integer",
+        "used_by_plants": {
+          "name": "used_by_plants",
+          "type": "boolean",
           "primaryKey": false,
-          "notNull": false
+          "notNull": false,
+          "default": false
+        },
+        "used_by_characters": {
+          "name": "used_by_characters",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
         },
         "model_name": {
           "name": "model_name",
@@ -2774,21 +3116,6 @@
         }
       },
       "indexes": {
-        "idx_threed_models_plant_id": {
-          "name": "idx_threed_models_plant_id",
-          "columns": [
-            {
-              "expression": "plant_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "idx_threed_models_type": {
           "name": "idx_threed_models_type",
           "columns": [
@@ -2820,21 +3147,7 @@
           "with": {}
         }
       },
-      "foreignKeys": {
-        "threed_models_plant_id_threed_plants_id_fk": {
-          "name": "threed_models_plant_id_threed_plants_id_fk",
-          "tableFrom": "threed_models",
-          "tableTo": "threed_plants",
-          "columnsFrom": [
-            "plant_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -3176,67 +3489,11 @@
           "notNull": false,
           "default": "'active'"
         },
-        "model_type": {
-          "name": "model_type",
-          "type": "threed_model_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'procedural'"
-        },
-        "model_path": {
-          "name": "model_path",
-          "type": "varchar(500)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "model_metadata": {
-          "name": "model_metadata",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'{}'::jsonb"
-        },
-        "is_custom_model": {
-          "name": "is_custom_model",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "model_version": {
-          "name": "model_version",
+        "model_id": {
+          "name": "model_id",
           "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "default": 1
-        },
-        "custom_model_url": {
-          "name": "custom_model_url",
-          "type": "text",
-          "primaryKey": false,
           "notNull": false
-        },
-        "model_scale": {
-          "name": "model_scale",
-          "type": "numeric(5, 2)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'1'"
-        },
-        "foliage_color": {
-          "name": "foliage_color",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'#32CD32'"
-        },
-        "fruit_color": {
-          "name": "fruit_color",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'#FF6347'"
         },
         "growth_habit": {
           "name": "growth_habit",
@@ -3455,24 +3712,23 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "idx_threed_plants_model_type": {
-          "name": "idx_threed_plants_model_type",
-          "columns": [
-            {
-              "expression": "model_type",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "threed_plants_model_id_threed_models_id_fk": {
+          "name": "threed_plants_model_id_threed_models_id_fk",
+          "tableFrom": "threed_plants",
+          "tableTo": "threed_models",
+          "columnsFrom": [
+            "model_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "threed_plants_plant_id_unique": {
@@ -4691,6 +4947,45 @@
         "raised",
         "container",
         "custom"
+      ]
+    },
+    "public.threed_character_animation": {
+      "name": "threed_character_animation",
+      "schema": "public",
+      "values": [
+        "idle",
+        "walk",
+        "run",
+        "fly",
+        "dance",
+        "sway",
+        "float",
+        "spin",
+        "bounce"
+      ]
+    },
+    "public.threed_character_status": {
+      "name": "threed_character_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "idle",
+        "sleeping",
+        "moving",
+        "hidden"
+      ]
+    },
+    "public.threed_character_type": {
+      "name": "threed_character_type",
+      "schema": "public",
+      "values": [
+        "animal",
+        "bird",
+        "insect",
+        "mythical",
+        "human",
+        "robot",
+        "decoration"
       ]
     },
     "public.threed_farmbot_status": {

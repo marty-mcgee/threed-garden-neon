@@ -1,7 +1,7 @@
 // src/app/api/threed/models/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedModels, threedPlants, threedModelFiles } from '@/lib/auth/schema';
+import { threedModels, threedPlants, threedModelFiles, threedCharacters } from '@/lib/auth/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { put, del } from '@vercel/blob';
 
@@ -15,9 +15,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
+    // Build query - join with plants to find which plants use this model
     let query = db.select({
       id: threedModels.id,
-      plantId: threedModels.plantId,
       modelName: threedModels.modelName,
       modelType: threedModels.modelType,
       filePath: threedModels.filePath,
@@ -35,9 +35,12 @@ export async function GET(request: NextRequest) {
       textureCount: threedModels.textureCount,
       isActive: threedModels.isActive,
       isDefault: threedModels.isDefault,
+      usedByPlants: threedModels.usedByPlants,
+      usedByCharacters: threedModels.usedByCharacters,
       metadata: threedModels.metadata,
       createdAt: threedModels.createdAt,
       updatedAt: threedModels.updatedAt,
+      // Get the plant that uses this model (if any)
       plant: {
         id: threedPlants.id,
         commonName: threedPlants.commonName,
@@ -46,11 +49,11 @@ export async function GET(request: NextRequest) {
       }
     })
     .from(threedModels)
-    .leftJoin(threedPlants, eq(threedModels.plantId, threedPlants.id));
+    .leftJoin(threedPlants, eq(threedPlants.modelId, threedModels.id));
 
     // Apply filters
     if (plantId) {
-      query = query.where(eq(threedModels.plantId, parseInt(plantId)));
+      query = query.where(eq(threedPlants.id, parseInt(plantId)));
     }
     if (modelType) {
       query = query.where(eq(threedModels.modelType, modelType));
@@ -110,7 +113,9 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const files = formData.getAll('files') as File[];
+    const associationType = formData.get('associationType') as string;
     const plantId = formData.get('plantId') as string;
+    const characterId = formData.get('characterId') as string;
     const modelName = formData.get('modelName') as string;
     const modelType = formData.get('modelType') as string;
     const isDefault = formData.get('isDefault') === 'true';
@@ -135,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Validation
     if (!mainModelFile) {
       return NextResponse.json(
-        { success: false, error: 'No main model file (.glb or .gltf) provided' },
+        { success: false, error: 'No main model file (.glb, .gltf, .fbx, or .obj) provided' },
         { status: 400 }
       );
     }
@@ -203,17 +208,9 @@ export async function POST(request: NextRequest) {
       console.warn('Invalid metadata JSON');
     }
 
-    // // If this model is set as default, unset any existing default for this plant
-    // if (isDefault) {
-    //   await db.update(threedModels)
-    //     .set({ isDefault: false })
-    //     .where(eq(threedModels.plantId, parseInt(plantId)));
-    // }
-
-    // Create model record
+    // Create model record (no plantId in threedModels anymore)
     const timestamp = Date.now();
     const [newModel] = await db.insert(threedModels).values({
-      plantId: parseInt(plantId),
       modelName,
       modelType: modelType || fileExtension.substring(1),
       filePath: '', // Will update after upload
@@ -231,10 +228,44 @@ export async function POST(request: NextRequest) {
       textureCount: textureFiles.length,
       isActive: true,
       isDefault,
+      usedByPlants: isDefault, // Will be updated if assigned to plant
+      usedByCharacters: false,
       uploadedBy: 'system',
       metadata,
       uploadedAt: new Date(),
     }).returning();
+
+    // After creating the model, handle association:
+    if (associationType === 'plant' && plantId) {
+      // Update the plant to use this model
+      await db.update(threedPlants)
+        .set({
+          modelId: newModel.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(threedPlants.id, parseInt(plantId)));
+      
+      // Update usage tracking
+      await db.update(threedModels)
+        .set({ usedByPlants: true })
+        .where(eq(threedModels.id, newModel.id));
+      
+      // If set as default, also update plant's modelId (already done above)
+      
+    } else if (associationType === 'character' && characterId) {
+      // Update the character to use this model
+      await db.update(threedCharacters)
+        .set({
+          modelId: newModel.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(threedCharacters.id, parseInt(characterId)));
+      
+      // Update usage tracking
+      await db.update(threedModels)
+        .set({ usedByCharacters: true })
+        .where(eq(threedModels.id, newModel.id));
+    }
 
     // Upload main model file
     const mainFileName = `${timestamp}-${mainModelFile.name}`;
@@ -305,35 +336,25 @@ export async function POST(request: NextRequest) {
         filePath: blob.url,
         fileSize: file.size,
         isBinaryBuffer: true,
-        loadOrder: index + 100, // Load after textures
+        loadOrder: index + 100,
       });
     });
     
     await Promise.all([...textureUploads, ...binaryUploads]);
 
-    // Update the plant's modelType and modelPath if this is the default model
+    // Update the plant to use this model if it's set as default
     if (isDefault) {
       await db.update(threedPlants)
         .set({
-          modelType: newModel.modelType as any,
-          modelPath: mainBlob.url,
-          isCustomModel: true,
-          modelMetadata: {
-            scale: newModel.scale,
-            rotationY: newModel.rotationY,
-            offsets: {
-              x: newModel.offsetX,
-              y: newModel.offsetY,
-              z: newModel.offsetZ,
-            },
-            animations: newModel.animations,
-            defaultAnimation: newModel.defaultAnimation,
-            hasExternalFiles: true,
-            textureCount: textureFiles.length,
-          },
+          modelId: newModel.id,
           updatedAt: new Date(),
         })
         .where(eq(threedPlants.id, parseInt(plantId)));
+      
+      // Update usage tracking
+      await db.update(threedModels)
+        .set({ usedByPlants: true })
+        .where(eq(threedModels.id, newModel.id));
     }
 
     // Get all uploaded files for response
@@ -351,13 +372,14 @@ export async function POST(request: NextRequest) {
         binaries: allFiles.filter(f => f.fileType === 'binary'),
         fileCount: 1 + textureFiles.length + binaryFiles.length,
         textureCount: textureFiles.length,
+        assignedPlantId: isDefault ? parseInt(plantId) : null,
       },
       message: 'Model uploaded successfully with all associated files',
     });
   } catch (error) {
     console.error('Error uploading model:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to upload model' },
+      { success: false, error: 'Failed to upload model', details: error.message },
       { status: 500 }
     );
   }
@@ -388,6 +410,11 @@ export async function DELETE(request: NextRequest) {
           .limit(1);
 
         if (model) {
+          // First, remove the model reference from any plants that use it
+          await db.update(threedPlants)
+            .set({ modelId: null, updatedAt: new Date() })
+            .where(eq(threedPlants.modelId, parseInt(id)));
+
           // Get all associated files
           const files = await db.select()
             .from(threedModelFiles)

@@ -1471,3 +1471,123 @@ Just let me know! Now go deploy to Vercel and enjoy your amazing 3D garden! 🚀
 **v0.1.8 - v0.1.9**
 
 ---
+
+Complete Architecture Overview
+text
+
+┌─────────────────────────────────────────────────────────────┐
+│                     threed_models                            │
+│  (Shared 3D assets - GLTF, GLB, FBX, OBJ)                   │
+│  • modelName, modelType, filePath                          │
+│  • scale, rotationY, offsets                               │
+│  • animations, defaultAnimation                            │
+│  • usedByPlants, usedByCharacters (tracking)               │
+└─────────────────┬─────────────────────┬─────────────────────┘
+                  │                     │
+                  ▼                     ▼
+┌─────────────────────────────┐  ┌─────────────────────────────┐
+│      threed_plants          │  │    threed_characters         │
+│  (Agricultural entities)    │  │  (Independent entities)      │
+│  • plantId (business key)   │  │  • characterId (business key)│
+│  • modelId (FK → models)    │  │  • modelId (FK → models)     │
+│  • bedId (FK → beds) REQUIRED│  │  • bedId (FK → beds) OPTIONAL│
+│  • growth stages, spacing   │  │  • animations, movement      │
+│  • days to maturity, etc.   │  │  • interaction, sound        │
+└─────────────────────────────┘  └─────────────────────────────┘
+                  │                     │
+                  ▼                     ▼
+┌─────────────────────────────┐  ┌─────────────────────────────┐
+│      threed_beds            │  │    (Free Roaming)            │
+│  (Garden containers)        │  │  • Absolute world position  │
+│  • bedId (business key)     │  │  • No bed required          │
+│  • positionX, Y, Z (world)  │  │  • Movement patterns        │
+│  • dimensions, color        │  │  • Can still be placed in   │
+└─────────────────────────────┘  │    beds if desired          │
+                                 └─────────────────────────────┘
+
+Key Design Patterns
+1. Shared Models
+
+    One 3D model can be used by multiple plants OR characters
+
+    Usage tracking (usedByPlants, usedByCharacters) prevents accidental deletion
+
+    Model properties (scale, rotation, offsets) stored once
+
+2. Plants (Structured)
+
+    Must belong to a bed (required foreign key)
+
+    Position relative to bed coordinates
+
+    Growth stages, spacing, quantities
+
+    Agricultural focus (harvest, maturity, care)
+
+3. Characters (Free)
+
+    No required relationships (bed is optional)
+
+    Absolute world positioning
+
+    Animations, movement patterns
+
+    Interaction messages and sound effects
+
+    Can still optionally be placed in beds
+
+4. Beds (Containers)
+
+    Define garden layout
+
+    Provide relative coordinate system for plants
+
+    Optional containers for characters
+
+Benefits of This Architecture
+
+✅ Reusability - Models serve both plants and characters
+✅ Flexibility - Characters can roam freely or live in beds
+✅ Type Safety - Clear separation of concerns
+✅ Scalability - Easy to add new entity types
+✅ Performance - Model caching, LOD support
+✅ User Experience - Interactable, animated characters
+What You Can Build Now
+Feature	Plants	Characters
+3D Models	✅	✅
+Custom GLTF/FBX	✅	✅
+Animations	Limited (sway)	✅ Full (walk, run, fly, dance)
+Movement	Static	✅ Wander, patrol, circle
+Interactions	Basic info	✅ Custom messages + sounds
+Positioning	Bed-relative	✅ Absolute world
+Growth Stages	✅ Seed → Mature	N/A
+Harvest Tracking	✅	N/A
+Next Possibilities
+
+    Path Editor - Draw patrol paths for characters
+
+    Seasonal Characters - Characters that appear in specific seasons
+
+    Quest System - Characters that give tasks to players
+
+    Pet System - Characters that follow the camera
+
+    Particle Effects - Footsteps, sparkles, etc.
+
+Your garden management system has evolved into a full 3D world with both structured agriculture AND free-roaming characters! 🌱✨
+
+Would you like me to help with anything specific, like:
+
+    Adding character rendering to the 3D scene?
+
+    Creating a path editor UI?
+
+    Implementing seasonal behavior?
+
+---
+
+## [MM] CONTEXT.md
+**Last Updated: May 31, 2026 @ 09:45am PST**
+**v0.1.10 - v0.1.12**
+
+---

@@ -1,4 +1,7 @@
 CREATE TYPE "public"."threed_bed_shape" AS ENUM('rectangle', 'square', 'circle', 'raised', 'container', 'custom');--> statement-breakpoint
+CREATE TYPE "public"."threed_character_animation" AS ENUM('idle', 'walk', 'run', 'fly', 'dance', 'sway', 'float', 'spin', 'bounce');--> statement-breakpoint
+CREATE TYPE "public"."threed_character_status" AS ENUM('active', 'idle', 'sleeping', 'moving', 'hidden');--> statement-breakpoint
+CREATE TYPE "public"."threed_character_type" AS ENUM('animal', 'bird', 'insect', 'mythical', 'human', 'robot', 'decoration');--> statement-breakpoint
 CREATE TYPE "public"."threed_farmbot_status" AS ENUM('online', 'offline', 'maintenance', 'error');--> statement-breakpoint
 CREATE TYPE "public"."threed_growth_stage" AS ENUM('seed', 'seedling', 'vegetative', 'flowering', 'fruiting', 'mature', 'dormant');--> statement-breakpoint
 CREATE TYPE "public"."threed_model_type" AS ENUM('procedural', 'gltf', 'glb', 'fbx', 'usdz', 'obj', 'herb-generic', 'vegetable-generic', 'flower-generic', 'fruit-generic', 'tree-generic', 'custom');--> statement-breakpoint
@@ -246,6 +249,39 @@ CREATE TABLE "threed_beds" (
 	CONSTRAINT "threed_beds_bed_id_unique" UNIQUE("bed_id")
 );
 --> statement-breakpoint
+CREATE TABLE "threed_characters" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"character_id" varchar(50) NOT NULL,
+	"name" varchar(255) NOT NULL,
+	"description" text,
+	"type" "threed_character_type" DEFAULT 'animal',
+	"status" "threed_character_status" DEFAULT 'active',
+	"model_id" integer,
+	"animations" "threed_character_animation"[] DEFAULT '{}',
+	"default_animation" "threed_character_animation",
+	"animation_speed" numeric(4, 2) DEFAULT '1.0',
+	"is_movable" boolean DEFAULT false,
+	"movement_pattern" varchar(50),
+	"movement_radius" numeric(5, 2),
+	"movement_speed" numeric(4, 2) DEFAULT '0.5',
+	"interactable" boolean DEFAULT true,
+	"interaction_message" text,
+	"sound_effect" varchar(255),
+	"bed_id" integer,
+	"position_x" numeric(8, 2) DEFAULT '0',
+	"position_y" numeric(8, 2) DEFAULT '0',
+	"position_z" numeric(8, 2) DEFAULT '0',
+	"rotation" numeric(8, 2) DEFAULT '0',
+	"scale" numeric(5, 2) DEFAULT '1',
+	"scale_multiplier" numeric(5, 2) DEFAULT '1',
+	"color_tint" varchar(20),
+	"is_active" boolean DEFAULT true,
+	"metadata" jsonb DEFAULT '{}'::jsonb,
+	"created_at" timestamp DEFAULT now(),
+	"updated_at" timestamp DEFAULT now(),
+	CONSTRAINT "threed_characters_character_id_unique" UNIQUE("character_id")
+);
+--> statement-breakpoint
 CREATE TABLE "threed_farmbot_logs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"farmbot_id" integer,
@@ -309,7 +345,8 @@ CREATE TABLE "threed_model_files" (
 --> statement-breakpoint
 CREATE TABLE "threed_models" (
 	"id" serial PRIMARY KEY NOT NULL,
-	"plant_id" integer,
+	"used_by_plants" boolean DEFAULT false,
+	"used_by_characters" boolean DEFAULT false,
 	"model_name" varchar(255) NOT NULL,
 	"model_type" "threed_model_type" NOT NULL,
 	"file_path" varchar(500) NOT NULL,
@@ -370,15 +407,7 @@ CREATE TABLE "threed_plants" (
 	"family" varchar(100),
 	"type" "threed_plant_type" DEFAULT 'Vegetable',
 	"status" "threed_plant_status" DEFAULT 'active',
-	"model_type" "threed_model_type" DEFAULT 'procedural',
-	"model_path" varchar(500),
-	"model_metadata" jsonb DEFAULT '{}'::jsonb,
-	"is_custom_model" boolean DEFAULT false,
-	"model_version" integer DEFAULT 1,
-	"custom_model_url" text,
-	"model_scale" numeric(5, 2) DEFAULT '1',
-	"foliage_color" varchar(20) DEFAULT '#32CD32',
-	"fruit_color" varchar(20) DEFAULT '#FF6347',
+	"model_id" integer,
 	"growth_habit" varchar(50),
 	"days_to_maturity" integer,
 	"days_to_germination" integer,
@@ -530,15 +559,17 @@ CREATE TABLE "verification" (
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "chp_cad_incidents" ADD CONSTRAINT "chp_cad_incidents_center_id_chp_cad_centers_id_fk" FOREIGN KEY ("center_id") REFERENCES "public"."chp_cad_centers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "threed_characters" ADD CONSTRAINT "threed_characters_model_id_threed_models_id_fk" FOREIGN KEY ("model_id") REFERENCES "public"."threed_models"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "threed_characters" ADD CONSTRAINT "threed_characters_bed_id_threed_beds_id_fk" FOREIGN KEY ("bed_id") REFERENCES "public"."threed_beds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_farmbot_logs" ADD CONSTRAINT "threed_farmbot_logs_farmbot_id_threed_farmbots_id_fk" FOREIGN KEY ("farmbot_id") REFERENCES "public"."threed_farmbots"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_farmbots" ADD CONSTRAINT "threed_farmbots_bed_id_threed_beds_id_fk" FOREIGN KEY ("bed_id") REFERENCES "public"."threed_beds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_harvests" ADD CONSTRAINT "threed_harvests_planting_id_threed_plantings_id_fk" FOREIGN KEY ("planting_id") REFERENCES "public"."threed_plantings"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_harvests" ADD CONSTRAINT "threed_harvests_plant_id_threed_plants_id_fk" FOREIGN KEY ("plant_id") REFERENCES "public"."threed_plants"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_model_files" ADD CONSTRAINT "threed_model_files_model_id_threed_models_id_fk" FOREIGN KEY ("model_id") REFERENCES "public"."threed_models"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "threed_models" ADD CONSTRAINT "threed_models_plant_id_threed_plants_id_fk" FOREIGN KEY ("plant_id") REFERENCES "public"."threed_plants"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_plantings" ADD CONSTRAINT "threed_plantings_plant_id_threed_plants_id_fk" FOREIGN KEY ("plant_id") REFERENCES "public"."threed_plants"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_plantings" ADD CONSTRAINT "threed_plantings_bed_id_threed_beds_id_fk" FOREIGN KEY ("bed_id") REFERENCES "public"."threed_beds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_plantings" ADD CONSTRAINT "threed_plantings_custom_model_id_threed_models_id_fk" FOREIGN KEY ("custom_model_id") REFERENCES "public"."threed_models"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "threed_plants" ADD CONSTRAINT "threed_plants_model_id_threed_models_id_fk" FOREIGN KEY ("model_id") REFERENCES "public"."threed_models"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_tasks" ADD CONSTRAINT "threed_tasks_planting_id_threed_plantings_id_fk" FOREIGN KEY ("planting_id") REFERENCES "public"."threed_plantings"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_tasks" ADD CONSTRAINT "threed_tasks_plant_id_threed_plants_id_fk" FOREIGN KEY ("plant_id") REFERENCES "public"."threed_plants"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "threed_tasks" ADD CONSTRAINT "threed_tasks_bed_id_threed_beds_id_fk" FOREIGN KEY ("bed_id") REFERENCES "public"."threed_beds"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -586,6 +617,12 @@ CREATE INDEX "session_userId_idx" ON "session" USING btree ("user_id");--> state
 CREATE UNIQUE INDEX "idx_threed_beds_bed_id" ON "threed_beds" USING btree ("bed_id");--> statement-breakpoint
 CREATE INDEX "idx_threed_beds_active" ON "threed_beds" USING btree ("is_active");--> statement-breakpoint
 CREATE INDEX "idx_threed_beds_name" ON "threed_beds" USING btree ("name");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_threed_characters_character_id" ON "threed_characters" USING btree ("character_id");--> statement-breakpoint
+CREATE INDEX "idx_threed_characters_name" ON "threed_characters" USING btree ("name");--> statement-breakpoint
+CREATE INDEX "idx_threed_characters_type" ON "threed_characters" USING btree ("type");--> statement-breakpoint
+CREATE INDEX "idx_threed_characters_status" ON "threed_characters" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_threed_characters_model" ON "threed_characters" USING btree ("model_id");--> statement-breakpoint
+CREATE INDEX "idx_threed_characters_bed" ON "threed_characters" USING btree ("bed_id");--> statement-breakpoint
 CREATE INDEX "idx_threed_farmbot_logs_farmbot" ON "threed_farmbot_logs" USING btree ("farmbot_id");--> statement-breakpoint
 CREATE INDEX "idx_threed_farmbot_logs_event_type" ON "threed_farmbot_logs" USING btree ("event_type");--> statement-breakpoint
 CREATE INDEX "idx_threed_farmbot_logs_logged_at" ON "threed_farmbot_logs" USING btree ("logged_at");--> statement-breakpoint
@@ -596,7 +633,6 @@ CREATE INDEX "idx_threed_harvests_planting" ON "threed_harvests" USING btree ("p
 CREATE INDEX "idx_threed_harvests_date" ON "threed_harvests" USING btree ("harvest_date");--> statement-breakpoint
 CREATE INDEX "idx_threed_model_files_model_id" ON "threed_model_files" USING btree ("model_id");--> statement-breakpoint
 CREATE INDEX "idx_threed_model_files_type" ON "threed_model_files" USING btree ("file_type");--> statement-breakpoint
-CREATE INDEX "idx_threed_models_plant_id" ON "threed_models" USING btree ("plant_id");--> statement-breakpoint
 CREATE INDEX "idx_threed_models_type" ON "threed_models" USING btree ("model_type");--> statement-breakpoint
 CREATE INDEX "idx_threed_models_active" ON "threed_models" USING btree ("is_active");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_threed_plantings_planting_id" ON "threed_plantings" USING btree ("planting_id");--> statement-breakpoint
@@ -608,7 +644,6 @@ CREATE UNIQUE INDEX "idx_threed_plants_plant_id" ON "threed_plants" USING btree 
 CREATE INDEX "idx_threed_plants_common_name" ON "threed_plants" USING btree ("common_name");--> statement-breakpoint
 CREATE INDEX "idx_threed_plants_type" ON "threed_plants" USING btree ("type");--> statement-breakpoint
 CREATE INDEX "idx_threed_plants_status" ON "threed_plants" USING btree ("status");--> statement-breakpoint
-CREATE INDEX "idx_threed_plants_model_type" ON "threed_plants" USING btree ("model_type");--> statement-breakpoint
 CREATE INDEX "idx_threed_system_logs_level" ON "threed_system_logs" USING btree ("level");--> statement-breakpoint
 CREATE INDEX "idx_threed_system_logs_logged_at" ON "threed_system_logs" USING btree ("logged_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "idx_threed_tasks_task_id" ON "threed_tasks" USING btree ("task_id");--> statement-breakpoint

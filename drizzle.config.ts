@@ -13,6 +13,6 @@ export default defineConfig({
     url: process.env.DATABASE_URL,
   },
   // Add these to skip prompts
-  verbose: false,
+  verbose: true,
   strict: false,
 });

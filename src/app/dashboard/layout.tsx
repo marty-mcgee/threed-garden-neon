@@ -30,6 +30,7 @@ const gardenTabs = [
   { path: '/dashboard/threed', name: 'Dashboard', icon: ScanEye, color: 'green' },
   { path: '/dashboard/threed/plants', name: 'Plants', icon: Leaf, color: 'green' },
   { path: '/dashboard/threed/models', name: 'Models', icon: Box, color: 'yellow' },
+  { path: '/dashboard/threed/characters', name: 'Characters', icon: Box, color: 'cyan' },
   { path: '/dashboard/threed/beds', name: 'Beds', icon: BedDouble, color: 'blue' },
   { path: '/dashboard/threed/plantings', name: 'Plantings', icon: Sprout, color: 'emerald' },
   { path: '/dashboard/threed/tasks', name: 'Tasks', icon: Calendar, color: 'orange' },
