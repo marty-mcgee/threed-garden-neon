@@ -1,7 +1,7 @@
 // src/components/threed/ThreeDGarden.tsx
 'use client';
 
-import React, { Suspense, useState, useMemo } from 'react';
+import React, { Suspense, useState, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { 
   OrbitControls, 
@@ -19,62 +19,31 @@ import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
 import * as THREE from 'three';
 
-// Import components
+// Import threed components
 import { GardenBed } from './GardenBed';
 import { GardenGround } from './GardenGround';
 import { GardenPlant } from './GardenPlant';
+import { GardenCharacter } from './GardenCharacter';
 import { WeatherEffects } from './WeatherEffects';
 import { FloatingUI } from './FloatingUI';
 
-// Types
-interface Bed {
-  id: number;
-  name: string;
-  shape: string;
-  widthFeet: number;
-  lengthFeet: number;
-  positionX: number;
-  positionY: number;
-  positionZ: number;
-  color: string;
-}
+// Import shared types
+import { Bed, GardenPlantData, CharacterData, WeatherData } from '@/lib/types/threed';
 
-interface GardenPlantData {
-  id: number;
-  plantId: number;
-  plantName: string;
-  plantType: string;
-  quantity: number;
-  positionX: number;
-  positionY: number;
-  positionZ: number;
-  growthStage: string;
-  bedId: number;
-  modelId?: number | null;
-  model?: {
-    id: number;
-    modelName: string;
-    modelType: string;
-    filePath: string;
-    scale: string;
-    rotationY: string;
-    offsetX: string;
-    offsetY: string;
-    offsetZ: string;
-    animations: any[];
-  };
-}
-
+// Add character data to the props interface
 interface ThreeDGardenProps {
   beds: Bed[];
   plantings: GardenPlantData[];
-  weather?: {
-    temperature: number;
-    condition: string;
-    rainfall: number;
-  };
-  onBedSelect?: (bed: Bed) => void;
-  onPlantSelect?: (plant: GardenPlantData) => void;
+  characters?: CharacterData[];  // Add this
+  // weather?: {
+  //   temperature: number;
+  //   condition: string;
+  //   rainfall: number;
+  // };
+  weather?: WeatherData;
+  // onBedSelect?: (bed: Bed) => void;
+  // onPlantSelect?: (plant: GardenPlantData) => void;
+  // onCharacterSelect?: (character: CharacterData) => void;  // Add this
 }
 
 // Lighting Component
@@ -113,7 +82,31 @@ function GardenClouds() {
 }
 
 // Main Garden Scene Component
-function GardenScene({ beds, plantings, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
+function GardenScene({ 
+  beds, 
+  plantings, 
+  characters, 
+  weather, 
+  // onBedSelect, 
+  // onPlantSelect, 
+  // onCharacterSelect 
+}: ThreeDGardenProps) {
+  const [currentHour, setCurrentHour] = useState(new Date().getHours());
+  const currentWeather = weather?.condition?.toLowerCase() || 'sunny';
+  
+  // Update hour every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+  
+  console.log('🎮 GardenScene rendering with beds:', beds?.length || 0);
+  console.log('🎮 GardenScene rendering with plantings:', plantings?.length || 0);
+  console.log('🎮 GardenScene rendering with characters:', characters?.length || 0);
+  console.log('🎮 GardenScene rendering with weather:', weather?.length || 0);
+  
   return (
     <>
       <fog attach="fog" args={['#87CEEB', 30, 60]} />
@@ -144,10 +137,31 @@ function GardenScene({ beds, plantings, onBedSelect, onPlantSelect }: ThreeDGard
           <GardenPlant 
             key={`plant-${plant.id}`}
             plant={plant}
-            onClick={() => onPlantSelect?.(plant)}
+            // onClick={() => onPlantSelect?.(plant)}
           />
         ))}
       </Suspense>
+      
+      {/* Characters - NEW */}
+      <Suspense fallback={null}>
+        {characters && characters.length > 0 ? (
+          characters.map((character) => (
+            <GardenCharacter
+              key={character.id}
+              character={character}
+              // onClick={() => onCharacterSelect?.(character)}
+              currentWeather={currentWeather}
+              currentHour={currentHour}
+            />
+          ))
+        ) : (
+          <group /> // Empty group when no characters
+        )}
+      </Suspense>
+
+      {/* Weather Effects */}
+      {weather && <WeatherEffects weather={weather} />}
+
     </>
   );
 }
@@ -208,18 +222,26 @@ function WaterFeature({ x, z, radius = 1.5 }: { x: number; z: number; radius?: n
 }
 
 // Main Export Component
-export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, onPlantSelect }: ThreeDGardenProps) {
+export default function ThreeDGarden({ beds, plantings, characters, weather, onBedSelect, onPlantSelect, onCharacterSelect }: ThreeDGardenProps) {
   const [showStats, setShowStats] = useState(false);
   const [autoRotate, setAutoRotate] = useState(false);
   const [showEffects, setShowEffects] = useState(true);
   const [isClient, setIsClient] = useState(false);
 
-  // Calculate quality based on plant count
+  // Calculate quality based on total objects
   const quality = useMemo(() => {
-    if (plantings.length > 150) return 'low';
-    if (plantings.length > 80) return 'medium';
+    const totalObjects = beds.length + plantings.length + (characters?.length || 0);
+    if (totalObjects > 150) return 'low';
+    if (totalObjects > 80) return 'medium';
     return 'high';
-  }, [plantings.length]);
+  }, [beds.length, plantings.length, characters?.length]);
+
+  // console.log('🎮 ThreeDGarden rendering with:', {
+  //   beds: beds.length,
+  //   plantings: plantings.length,
+  //   characters: characters?.length || 0,
+  //   quality
+  // });
 
   // Client-side only rendering
   React.useEffect(() => {
@@ -237,13 +259,13 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
     );
   }
 
-  if (!beds.length && !plantings.length) {
+  if (!beds.length && !plantings.length && (!characters || characters.length === 0)) {
     return (
       <div className="flex flex-col items-center justify-center h-[800px] bg-gradient-to-b from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 rounded-xl border">
         <div className="text-center">
           <div className="text-6xl mb-4">🌱</div>
           <p className="text-muted-foreground mb-2">No garden data available</p>
-          <p className="text-sm text-muted-foreground">Add beds and plantings to see your 3D garden</p>
+          <p className="text-sm text-muted-foreground">Add beds, plantings, or characters to see your 3D garden</p>
         </div>
       </div>
     );
@@ -292,8 +314,11 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
         <GardenScene 
           beds={beds} 
           plantings={plantings} 
-          onBedSelect={onBedSelect}
-          onPlantSelect={onPlantSelect}
+          characters={characters}
+          weather={weather}
+          // onBedSelect={onBedSelect}
+          // onPlantSelect={onPlantSelect}
+          // onCharacterSelect={onCharacterSelect}
         />
         
         {showEffects && quality === 'high' && (
@@ -336,7 +361,7 @@ export default function ThreeDGarden({ beds, plantings, weather, onBedSelect, on
           <span>📜 Scroll to zoom</span>
         </div>
         <div className="text-green-300 text-xs mt-1">
-          🌟 {beds.length} beds • {plantings.length} plants
+          🌟 {beds.length} beds • {plantings.length} plants • {characters?.length || 0} characters
         </div>
       </div>
       

@@ -25,6 +25,9 @@ import { Badge } from '@/components/ui/badge';
 // });
 import ThreeDGarden from '@/components/threed/ThreeDGarden'; // Regular import, NOT dynamic
 
+// Import shared types
+import { Bed, GardenPlantData, CharacterData, WeatherData } from '@/lib/types/threed';
+
 interface DashboardStats {
   plants: { total: number; byType: Record<string, number> };
   beds: { total: number; active: number; totalSqFt: number };
@@ -41,6 +44,8 @@ export default function ThreeDMasterDashboard() {
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [plants, setPlants] = useState([]);
+  const [characters, setCharacters] = useState<CharacterData[]>([]);
   const [beds, setBeds] = useState([]);
   const [plantings, setPlantings] = useState([]);
   const [weather, setWeather] = useState<any>(null);
@@ -49,7 +54,7 @@ export default function ThreeDMasterDashboard() {
     try {
       setRefreshing(true);
       
-      // Fetch all data in parallel
+      // Fetch stats data in parallel (no characters stats needed yet)
       const [
         plantsRes,
         bedsRes,
@@ -86,17 +91,42 @@ export default function ThreeDMasterDashboard() {
         farmbots: farmbotsData.data || { total: 0, online: 0 },
       });
       
+      // Fetch FULL data for 3D view (beds, plantings, characters - all in parallel)
+      const [
+        bedsFullRes,
+        plantingsFullRes,
+        charactersFullRes,  // ADD THIS - fetch full character data
+      ] = await Promise.all([
+        fetch('/api/threed/beds?limit=100'),
+        fetch('/api/threed/plantings?limit=500'),
+        fetch('/api/threed/characters?limit=500&includeModel=true'),
+      ]);
+
       // Fetch 3D data
-      const bedsFullRes = await fetch('/api/threed/beds?limit=100');
+      // const bedsFullRes = await fetch('/api/threed/beds?limit=100');
       const bedsFullData = await bedsFullRes.json();
       if (bedsFullData.success) {
         setBeds(bedsFullData.data);
       }
       
-      const plantingsFullRes = await fetch('/api/threed/plantings?limit=500');
+      // const plantingsFullRes = await fetch('/api/threed/plantings?limit=500');
       const plantingsFullData = await plantingsFullRes.json();
       if (plantingsFullData.success) {
         setPlantings(plantingsFullData.data);
+      }
+
+      const charactersFullData = await charactersFullRes.json();
+      if (charactersFullData.success) {
+        let charsData = charactersFullData.data;
+        console.log('📦 Raw characters data:', charsData);
+        
+        // Extract character objects from nested structure if needed
+        if (charsData && charsData.length > 0 && charsData[0].character) {
+          charsData = charsData.map((item: any) => item.character);
+        }
+        
+        console.log('📦 Processed characters:', charsData);
+        setCharacters(charsData || []);
       }
       
       // Fetch recent activity (logs + recent tasks)
@@ -177,6 +207,18 @@ export default function ThreeDMasterDashboard() {
     { title: 'FarmBots', value: stats?.farmbots.online || 0, sub: `${stats?.farmbots.total || 0} total`, icon: <Cpu className="w-5 h-5" />, color: 'purple', href: '/dashboard/threed/farmbots' },
   ];
 
+  // Also log when rendering
+  console.log('🎮 Rendering ThreeDGarden with characters:', characters);
+
+  console.log('🎮 Rendering ThreeDGarden with:', {
+    bedsCount: beds.length,
+    sampleBed: beds[0],
+    plantingsCount: plantings.length,
+    samplePlanting: plantings[0],
+    charactersCount: characters.length,
+    sampleCharacter: characters[0]
+  });
+
   return (
     <div className="space-y-6">
       {ToastComponent}
@@ -251,11 +293,18 @@ export default function ThreeDMasterDashboard() {
       <Card>
         <CardContent className="p-0 overflow-hidden rounded-xl">
           {beds.length > 0 || plantings.length > 0 ? (
+            // In the ThreeDGarden component call, add characters prop:
             <ThreeDGarden
               beds={beds}
               plantings={plantings}
+              characters={characters}  // Make sure this is passed
               weather={weather}
-              showControls={true}
+              // onBedSelect={handleBedSelect}
+              // onPlantSelect={handlePlantSelect}
+              // onCharacterSelect={(character) => {
+              //   console.log('Selected character:', character);
+              //   showToast(`${character.name}: ${character.interactionMessage || 'Hello!'}`, 'info');
+              // }}
             />
           ) : (
             <div className="h-[500px] bg-muted flex flex-col items-center justify-center">
