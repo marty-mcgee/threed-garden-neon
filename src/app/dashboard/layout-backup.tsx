@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Tabs.Root>
 
         {/* Page Content */}
-        <div className="rounded-2xl bg-background/50 backdrop-blur-sm border shadow-sm overflow-hidden">
+        <div className="rounded-2xl bg-background/50 backdrop-blur-sm shadow-sm overflow-hidden">
           {children}
         </div>
         

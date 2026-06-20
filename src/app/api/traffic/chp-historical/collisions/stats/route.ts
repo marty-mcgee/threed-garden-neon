@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { chpCollisions } from '@/lib/auth/schema';
+import { chpCollisions } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

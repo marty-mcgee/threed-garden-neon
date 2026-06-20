@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { caltransDistricts } from '@/lib/auth/schema';
+import { caltransDistricts } from '@/lib/schema';
 
 export const dynamic = 'force-dynamic';
 

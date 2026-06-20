@@ -1,6 +1,6 @@
 // src/lib/services/CaltransPoller.ts
 import { db } from '@/lib/db/client';
-import { laneClosures } from '@/lib/auth/schema';
+import { laneClosures } from '@/lib/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export class CaltransPoller {

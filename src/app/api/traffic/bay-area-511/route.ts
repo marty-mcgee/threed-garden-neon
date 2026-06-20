@@ -1,7 +1,7 @@
 // src/app/api/bay-area-511/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { bayAreaTrafficEvents } from '@/lib/auth/schema';
+import { bayAreaTrafficEvents } from '@/lib/schema';
 import { desc, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

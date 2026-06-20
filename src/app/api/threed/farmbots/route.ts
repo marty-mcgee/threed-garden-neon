@@ -1,7 +1,7 @@
 // src/app/api/threed/farmbots/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedFarmbots, threedBeds } from '@/lib/auth/schema';
+import { threedFarmbots, threedBeds } from '@/lib/schema';
 import { desc, eq, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

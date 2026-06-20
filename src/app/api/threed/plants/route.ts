@@ -1,7 +1,7 @@
 // src/app/api/threed/plants/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedPlants, threedModels } from '@/lib/auth/schema';
+import { threedPlants, threedModels } from '@/lib/schema';
 import { eq, desc, sql, and } from 'drizzle-orm';
 
 // GET /api/threed/plants - Fetch plants with their associated models

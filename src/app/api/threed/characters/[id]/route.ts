@@ -1,7 +1,7 @@
 // src/app/api/threed/characters/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedCharacters, threedModels, threedBeds } from '@/lib/auth/schema';
+import { threedCharacters, threedModels, threedBeds } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 // GET /api/threed/characters/[id] - Get a single character with its model and bed

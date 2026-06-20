@@ -17,12 +17,12 @@ export const dynamic = 'force-dynamic';
 
 // Traffic Services Tabs
 const trafficTabs = [
-  { path: '/dashboard', name: 'Overview', icon: MapPin, color: 'blue' },
-  { path: '/dashboard/chp-live', name: 'CHP Live', icon: AlertTriangle, color: 'red' },
-  { path: '/dashboard/511org', name: 'Bay Area 511', icon: Radio, color: 'emerald' },
-  { path: '/dashboard/caltrans', name: 'Caltrans', icon: Car, color: 'blue' },
-  { path: '/dashboard/calfire', name: 'CalFire', icon: Flame, color: 'orange' },
-  { path: '/dashboard/chp-historical', name: 'CHP Historical', icon: BarChart3, color: 'purple' },
+  { path: '/dashboard/traffic', name: 'Overview', icon: MapPin, color: 'blue' },
+  { path: '/dashboard/traffic/chp-live', name: 'CHP Live', icon: AlertTriangle, color: 'red' },
+  { path: '/dashboard/traffic/511org', name: 'Bay Area 511', icon: Radio, color: 'emerald' },
+  { path: '/dashboard/traffic/caltrans', name: 'Caltrans', icon: Car, color: 'blue' },
+  { path: '/dashboard/traffic/calfire', name: 'CalFire', icon: Flame, color: 'orange' },
+  { path: '/dashboard/traffic/chp-historical', name: 'CHP Historical', icon: BarChart3, color: 'purple' },
 ];
 
 // ThreeD Garden Tabs
@@ -163,7 +163,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </header>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
         {/* Tab Navigation */}
         <Tabs.Root value={pathname} className="mb-6">
           <Tabs.List className="flex flex-col space-y-4">
@@ -187,7 +187,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Tabs.Root>
 
         {/* Page Content */}
-        <div className="rounded-2xl bg-background/50 backdrop-blur-sm border shadow-sm">
+        <div className="rounded-2xl bg-background/50 backdrop-blur-sm">
           {children}
         </div>
         

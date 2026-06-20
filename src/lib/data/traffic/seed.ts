@@ -1,7 +1,7 @@
 // @/lib/db/seed.ts
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { caltransDistricts } from '@/lib/auth/schema';
+import { caltransDistricts } from '@/lib/schema';
 import * as dotenv from 'dotenv';
 
 dotenv.config({ path: '.env.local' });

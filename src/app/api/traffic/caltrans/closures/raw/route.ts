@@ -1,7 +1,7 @@
 // src/app/api/caltrans/closures/raw/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { laneClosures } from '@/lib/auth/schema';
+import { laneClosures } from '@/lib/schema';
 import { sql, desc, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

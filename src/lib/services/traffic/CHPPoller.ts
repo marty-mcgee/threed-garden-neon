@@ -1,6 +1,6 @@
 // src/lib/services/CHPPoller.ts
 import { db } from '@/lib/db/client';
-import { chpCollisions } from '@/lib/auth/schema';
+import { chpCollisions } from '@/lib/schema';
 import { eq, sql, desc } from 'drizzle-orm';
 
 export class CHPPoller {

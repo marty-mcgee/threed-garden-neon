@@ -1,7 +1,7 @@
 // src/lib/scripts/audit-chp-cad.ts
 import { db } from '@/lib/db/client';
 import { sql } from 'drizzle-orm';
-import { chpCadIncidents, chpCadCenters } from '@/lib/auth/schema';
+import { chpCadIncidents, chpCadCenters } from '@/lib/schema';
 
 async function auditCHPCAD() {
   console.log('🔍 Auditing CHP CAD data quality...\n');

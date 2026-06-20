@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import { laneClosures } from '@/lib/auth/schema';
+import { laneClosures } from '@/lib/schema';
 import { eq, and, ilike, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

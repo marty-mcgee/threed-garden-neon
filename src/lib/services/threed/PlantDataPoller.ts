@@ -1,6 +1,6 @@
 // src/lib/services/threed/PlantDataPoller.ts
 import { db } from '@/lib/db/client';
-import { threedPlants } from '@/lib/auth/schema';
+import { threedPlants } from '@/lib/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export class PlantDataPoller {

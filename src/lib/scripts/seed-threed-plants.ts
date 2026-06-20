@@ -1,6 +1,6 @@
 // src/lib/scripts/seed-threed-plants.ts
 import { db } from '@/lib/db/client';
-import { threedPlants } from '@/lib/auth/schema';
+import { threedPlants } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 const seedPlants = [

@@ -15,6 +15,13 @@
       "when": 1780247195886,
       "tag": "0001_lying_landau",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781894699176,
+      "tag": "0002_nice_supernaut",
+      "breakpoints": true
     }
   ]
 }

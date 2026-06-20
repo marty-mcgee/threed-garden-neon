@@ -1,7 +1,7 @@
 // src/lib/services/CalFirePoller.ts - Updated to fetch both active and inactive
 
 import { db } from '@/lib/db/client';
-import { calfireIncidents } from '@/lib/auth/schema';
+import { calfireIncidents } from '@/lib/schema';
 import { eq, sql } from 'drizzle-orm';
 
 // Northern California counties to monitor (including test counties)

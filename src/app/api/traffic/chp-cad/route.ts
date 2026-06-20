@@ -1,7 +1,7 @@
 // src/app/api/chp-cad/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { chpCadIncidents, chpCadCenters } from '@/lib/auth/schema';
+import { chpCadIncidents, chpCadCenters } from '@/lib/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

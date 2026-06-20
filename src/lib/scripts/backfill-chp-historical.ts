@@ -1,6 +1,6 @@
 // src/lib/scripts/backfill-chp-historical.ts
 import { db } from '@/lib/db/client';
-import { chpCollisions } from '@/lib/auth/schema';
+import { chpCollisions } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 async function backfillCHPHistorical() {

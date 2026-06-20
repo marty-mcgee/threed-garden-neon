@@ -1,6 +1,6 @@
 // src/lib/services/BayArea511Poller.ts
 import { db } from '@/lib/db/client';
-import { bayAreaTrafficEvents } from '@/lib/auth/schema';
+import { bayAreaTrafficEvents } from '@/lib/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export class BayArea511Poller {

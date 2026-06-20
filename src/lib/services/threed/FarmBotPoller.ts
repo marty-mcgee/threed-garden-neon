@@ -1,6 +1,6 @@
 // src/lib/services/threed/FarmBotPoller.ts
 import { db } from '@/lib/db/client';
-import { threedFarmbots, threedFarmbotLogs } from '@/lib/auth/schema';
+import { threedFarmbots, threedFarmbotLogs } from '@/lib/schema';
 import { eq, desc, sql } from 'drizzle-orm';
 
 export interface FarmBotDevice {

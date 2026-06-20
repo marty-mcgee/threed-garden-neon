@@ -1,7 +1,7 @@
 // src/app/api/threed/beds/stats/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedBeds } from '@/lib/auth/schema';
+import { threedBeds } from '@/lib/schema';
 import { sql, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

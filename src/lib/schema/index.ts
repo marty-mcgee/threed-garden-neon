@@ -1,4 +1,4 @@
-// @/lib/auth/schema
+// @/lib/schema/index
 import { 
   pgTable, 
   text, 
@@ -21,8 +21,13 @@ import {
 import { relations, sql } from 'drizzle-orm';
 
 // ============================================
+// ## ALL MODULES
+// ============================================
+
+// ============================================
 // ## Better Auth: User Session + Account
 // ============================================
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -113,6 +118,227 @@ export const accountRelations = relations(account, ({ one }) => ({
     references: [user.id],
   }),
 }));
+
+// ============================================
+// ### Music Service
+// ============================================
+
+// Music Enums
+export const musicLinkTypeEnum = pgEnum('music_link_type', ['external', 'social', 'buy', 'stream', 'video']);
+export const musicLinkStatusEnum = pgEnum('music_link_status', ['active', 'inactive', 'pending', 'expired']);
+export const albumStatusEnum = pgEnum('album_status', ['draft', 'published', 'archived']);
+export const trackStatusEnum = pgEnum('track_status', ['active', 'inactive', 'processing']);
+export const musicPollingTypeEnum = pgEnum('music_polling_type', ['metadata', 'stats', 'sync']);
+
+// Music Tables
+export const musicAlbums = pgTable('music_albums', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  artist: text('artist').notNull(),
+  coverArt: text('cover_art').notNull(), // Direct URL to the image file
+  releaseYear: integer('release_year'),
+  description: text('description'),
+  sortOrder: integer('sort_order').default(0),
+  status: albumStatusEnum('status').default('draft'),
+  isPublic: boolean('is_public').default(false),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => ({
+  userIdIdx: index('music_albums_user_id_idx').on(table.userId),
+  statusIdx: index('music_albums_status_idx').on(table.status),
+  sortOrderIdx: index('music_albums_sort_order_idx').on(table.sortOrder),
+}));
+
+// ============================================
+// ## Schema Updated 2026-06-04
+// ## Added music .. album pictures/media
+// ============================================
+
+// Add this new table after music_albums
+
+export const musicMedia = pgTable('music_media', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }).notNull(), // Add this
+  albumId: integer('album_id').references(() => musicAlbums.id, { onDelete: 'cascade' }).notNull(),
+  fileName: text('file_name').notNull(),
+  fileUrl: text('file_url').notNull(),
+  fileType: text('file_type').notNull(),
+  fileSize: integer('file_size'),
+  isPrimary: boolean('is_primary').default(true),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => ({
+  userIdIdx: index('music_media_user_id_idx').on(table.userId), // Add this
+  albumIdIdx: index('music_media_album_id_idx').on(table.albumId),
+  isPrimaryIdx: index('music_media_is_primary_idx').on(table.isPrimary),
+}));
+
+// Add relation to musicAlbums
+export const musicAlbumsRelations = relations(musicAlbums, ({ many, one }) => ({
+  tracks: many(musicTracks),
+  musicAlbumLinks: many(musicAlbumLinks),
+  media: many(musicMedia), // Add this line
+  user: one(user, {
+    fields: [musicAlbums.userId],
+    references: [user.id],
+  }),
+}));
+
+// Add relation from musicMedia to musicAlbums
+export const musicMediaRelations = relations(musicMedia, ({ one }) => ({
+  user: one(user, {
+    fields: [musicMedia.userId],
+    references: [user.id],
+  }),
+  album: one(musicAlbums, {
+    fields: [musicMedia.albumId],
+    references: [musicAlbums.id],
+  }),
+}));
+
+// ============================================
+// ## Schema Updated 2026-06-04
+// ## Added music .. album pictures
+// ============================================
+
+export const musicTracks = pgTable('music_tracks', {
+  id: serial('id').primaryKey(),
+  albumId: integer('album_id').references(() => musicAlbums.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  duration: integer('duration'),
+  trackNumber: integer('track_number'),
+  publicUrl: text('public_url').notNull(), // Direct URL to the audio file
+  status: trackStatusEnum('status').default('active'),
+  lyrics: text('lyrics'),
+  metadata: jsonb('metadata'),
+  playCount: integer('play_count').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => ({
+  albumIdIdx: index('music_tracks_album_id_idx').on(table.albumId),
+  statusIdx: index('music_tracks_status_idx').on(table.status),
+}));
+
+export const musicLinks = pgTable('music_links', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  url: text('url').notNull(), // Direct URL to the link file
+  type: musicLinkTypeEnum('type').default('external'),
+  icon: text('icon'),
+  description: text('description'),
+  status: musicLinkStatusEnum('status').default('active'),
+  displayOrder: integer('display_order').default(0),
+  metadata: jsonb('metadata'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => ({
+  userIdIdx: index('music_links_user_id_idx').on(table.userId),
+  typeIdx: index('music_links_type_idx').on(table.type),
+}));
+
+export const musicAlbumLinks = pgTable('music_album_links', {
+  id: serial('id').primaryKey(),
+  albumId: integer('album_id').references(() => musicAlbums.id, { onDelete: 'cascade' }),
+  linkId: integer('link_id').references(() => musicLinks.id, { onDelete: 'cascade' }),
+  linkType: text('link_type').notNull(), // 'album' or 'track'
+  trackId: integer('track_id').references(() => musicTracks.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => ({
+  albumLinkIdx: index('album_links_album_link_idx').on(table.albumId, table.linkId),
+  trackLinkIdx: index('album_links_track_link_idx').on(table.trackId, table.linkId),
+}));
+
+export const musicPollingLogs = pgTable('music_polling_logs', {
+  id: serial('id').primaryKey(),
+  pollType: musicPollingTypeEnum('poll_type').notNull(),
+  status: text('status').notNull(), // 'success', 'error', 'in_progress'
+  message: text('message'),
+  metadata: jsonb('metadata'),
+  startedAt: timestamp('started_at').defaultNow(),
+  completedAt: timestamp('completed_at'),
+  error: text('error'),
+}, (table) => ({
+  // Change from index to regular index
+  pollTypeIdx: index('music_polling_logs_type_idx').on(table.pollType),
+  statusIdx: index('music_polling_logs_status_idx').on(table.status),
+  // Optional: add a compound index for common queries
+  pollTypeStatusIdx: index('music_polling_logs_type_status_idx').on(table.pollType, table.status),
+}));
+
+// Relations
+
+export const musicTracksRelations = relations(musicTracks, ({ one, many }) => ({
+  album: one(musicAlbums, {
+    fields: [musicTracks.albumId],
+    references: [musicAlbums.id],
+  }),
+  trackLinks: many(musicAlbumLinks),
+}));
+
+export const musicLinksRelations = relations(musicLinks, ({ many, one }) => ({
+  musicAlbumLinks: many(musicAlbumLinks),
+  user: one(user, {
+    fields: [musicLinks.userId],
+    references: [user.id],
+  }),
+}));
+
+export const musicAlbumLinksRelations = relations(musicAlbumLinks, ({ one }) => ({
+  album: one(musicAlbums, {
+    fields: [musicAlbumLinks.albumId],
+    references: [musicAlbums.id],
+  }),
+  link: one(musicLinks, {
+    fields: [musicAlbumLinks.linkId],
+    references: [musicLinks.id],
+  }),
+  track: one(musicTracks, {
+    fields: [musicAlbumLinks.trackId],
+    references: [musicTracks.id],
+  }),
+}));
+
+export const musicPollingLogsRelations = relations(musicPollingLogs, ({}) => ({}));
+
+// ============================================
+// ## Schema Updated 2026-06-02
+// ## Added music
+// ============================================
+
+// Add this to your schema file
+export const musicPlaybackHistory = pgTable('music_playback_history', {
+  id: serial('id').primaryKey(),
+  userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+  trackId: integer('track_id').references(() => musicTracks.id, { onDelete: 'cascade' }),
+  albumId: integer('album_id').references(() => musicAlbums.id, { onDelete: 'cascade' }),
+  playedAt: timestamp('played_at').defaultNow(),
+  playDuration: integer('play_duration'), // seconds played
+  completed: boolean('completed').default(false),
+  source: text('source').default('music_player'), // 'music_player', 'queue', 'autoplay'
+}, (table) => ({
+  userIdIdx: index('music_playback_user_id_idx').on(table.userId),
+  trackIdIdx: index('music_playback_track_id_idx').on(table.trackId),
+  playedAtIdx: index('music_playback_played_at_idx').on(table.playedAt),
+}));
+
+// ============================================
+// ## Schema Updated 2026-06-03
+// ## Added music playback history
+// ============================================
+
+
+
+
+
+
+// ============================================
+// ## TRAFFIC MODULE
+// ============================================
 
 // ============================================
 // ## Caltrans Districts Table
@@ -401,6 +627,24 @@ export const calfireIncidents = pgTable('calfire_incidents', {
 // ## [MM] Schema Updated 2026-05-30
 // ============================================
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================
+// ## THREED MODULE
+// ============================================
+
 // ============================================
 // ENUMS for type safety
 // ============================================
@@ -417,6 +661,7 @@ export const modelTypeEnum = pgEnum('threed_model_type', [
   'procedural', 
   'gltf', 
   'glb', 
+  'fbx',
   'usdz', 
   'obj', 
   'herb-generic',
@@ -448,18 +693,8 @@ export const threedPlants = pgTable('threed_plants', {
   type: plantTypeEnum('type').default('Vegetable'),
   status: plantStatusEnum('status').default('active'),
   
-  // 3D Model fields - ENHANCED
-  modelType: modelTypeEnum('model_type').default('procedural'),
-  modelPath: varchar('model_path', { length: 500 }), // URL or path to GLTF/GLB
-  modelMetadata: jsonb('model_metadata').default({}), // Store scale, rotation, offsets, animations
-  isCustomModel: boolean('is_custom_model').default(false),
-  modelVersion: integer('model_version').default(1),
-  
-  // Legacy model fields (kept for backward compatibility)
-  customModelUrl: text('custom_model_url'),
-  modelScale: decimal('model_scale', { precision: 5, scale: 2 }).default('1'),
-  foliageColor: varchar('foliage_color', { length: 20 }).default('#32CD32'),
-  fruitColor: varchar('fruit_color', { length: 20 }).default('#FF6347'),
+  // Relationship to model (shared with characters)
+  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'set null' }),
   
   // Growth parameters
   growthHabit: varchar('growth_habit', { length: 50 }),
@@ -502,7 +737,7 @@ export const threedPlants = pgTable('threed_plants', {
   commonNameIdx: index('idx_threed_plants_common_name').on(table.commonName),
   typeIdx: index('idx_threed_plants_type').on(table.type),
   statusIdx: index('idx_threed_plants_status').on(table.status),
-  modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
+  // modelTypeIdx: index('idx_threed_plants_model_type').on(table.modelType),
 }));
 
 // ============================================
@@ -510,12 +745,16 @@ export const threedPlants = pgTable('threed_plants', {
 // ============================================
 export const threedModels = pgTable('threed_models', {
   id: serial('id').primaryKey(),
-  plantId: integer('plant_id').references(() => threedPlants.id, { onDelete: 'cascade' }),
   
+  // Add these to track what uses this model
+  usedByPlants: boolean('used_by_plants').default(false),
+  usedByCharacters: boolean('used_by_characters').default(false),
+
   modelName: varchar('model_name', { length: 255 }).notNull(),
   modelType: modelTypeEnum('model_type').notNull(),
   filePath: varchar('file_path', { length: 500 }).notNull(),
   fileSize: integer('file_size'), // in bytes
+  thumbnailUrl: text('thumbnail_url'),
   
   // Model properties
   scale: decimal('scale', { precision: 5, scale: 2 }).default('1.0'),
@@ -531,6 +770,11 @@ export const threedModels = pgTable('threed_models', {
   // Animation support
   animations: jsonb('animations').default([]), // ['idle', 'sway', 'grow', 'flower']
   defaultAnimation: varchar('default_animation', { length: 50 }),
+
+  // Update threedModels table to track if it has external files
+  hasExternalFiles: boolean('has_external_files').default(false),
+  textureCount: integer('texture_count').default(0),
+  mainModelFileId: integer('main_model_file_id'), // Reference to the main GLB/GLTF file in threedModelFiles
   
   // Model metadata
   isActive: boolean('is_active').default(true),
@@ -544,7 +788,7 @@ export const threedModels = pgTable('threed_models', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 }, (table) => ({
-  plantIdIdx: index('idx_threed_models_plant_id').on(table.plantId),
+  // plantIdIdx: index('idx_threed_models_plant_id').on(table.plantId),
   modelTypeIdx: index('idx_threed_models_type').on(table.modelType),
   activeIdx: index('idx_threed_models_active').on(table.isActive),
 }));
@@ -900,10 +1144,14 @@ export const threedPlantsRelations = relations(threedPlants, ({ many }) => ({
   wateringSchedules: many(threedWateringSchedules),
 }));
 
-export const threedModelsRelations = relations(threedModels, ({ one }) => ({
+export const threedModelsRelations = relations(threedModels, ({ one, many }) => ({
   plant: one(threedPlants, {
-    fields: [threedModels.plantId],
-    references: [threedPlants.id],
+    fields: [threedModels.id],
+    references: [threedPlants.modelId],
+  }),
+  character: one(threedCharacters, {
+    fields: [threedModels.id],
+    references: [threedCharacters.modelId],
   }),
 }));
 
@@ -1006,4 +1254,168 @@ export type ThreedFarmbotLog = typeof threedFarmbotLogs.$inferSelect;
 // ============================================
 // ## Schema Updated 2026-05-30
 // ## Added GLTF model support and automated watering schedules
+// ============================================
+
+// ============================================
+// 1c. threed_model_files - Associated files for 3D models (NEW)
+// ============================================
+export const threedModelFiles = pgTable('threed_model_files', {
+  id: serial('id').primaryKey(),
+  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'cascade' }),
+  
+  // File information
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileType: varchar('file_type', { length: 50 }).notNull(), // 'model', 'texture', 'binary', 'other'
+  textureType: varchar('texture_type', { length: 50 }), // 'baseColor', 'normalMap', 'roughness', 'metallic', 'emissive', 'occlusion'
+  filePath: varchar('file_path', { length: 500 }).notNull(),
+  fileSize: integer('file_size'),
+  
+  // For GLTF binary
+  isBinaryBuffer: boolean('is_binary_buffer').default(false),
+  
+  // Order in which files should be loaded
+  loadOrder: integer('load_order').default(0),
+  
+  createdAt: timestamp('created_at').defaultNow(),
+}, (table) => ({
+  modelIdIdx: index('idx_threed_model_files_model_id').on(table.modelId),
+  fileTypeIdx: index('idx_threed_model_files_type').on(table.fileType),
+}));
+
+// ============================================
+// ## Schema Updated 2026-05-30
+// ## Added model files, so models can have multiple files
+// ============================================
+
+// ============================================
+// ENUMS for Characters
+// ============================================
+export const characterTypeEnum = pgEnum('threed_character_type', [
+  'animal', 'bird', 'insect', 'mythical', 'human', 'robot', 'decoration'
+]);
+
+export const characterStatusEnum = pgEnum('threed_character_status', [
+  'active', 'idle', 'sleeping', 'moving', 'hidden'
+]);
+
+export const characterAnimationEnum = pgEnum('threed_character_animation', [
+  'idle', 'walk', 'run', 'fly', 'dance', 'sway', 'float', 'spin', 'bounce'
+]);
+
+// src/lib/auth/schema.ts - Add new enums and fields to threedCharacters only
+
+// New enums for characters
+export const characterMovementTypeEnum = pgEnum('threed_character_movement_type', [
+  'stationary', 'wander', 'patrol', 'circle', 'follow', 'teleport'
+]);
+
+export const characterWeatherSensitivityEnum = pgEnum('threed_character_weather_sensitivity', [
+  'all', 'sunny_only', 'rainy_only', 'no_rain', 'no_snow'
+]);
+
+export const characterEmoteEnum = pgEnum('threed_character_emote', [
+  'none', 'happy', 'sad', 'surprised', 'angry', 'wave', 'dance', 'sleep'
+]);
+
+// Update threedCharacters table with new fields
+export const threedCharacters = pgTable('threed_characters', {
+  id: serial('id').primaryKey(),
+  characterId: varchar('character_id', { length: 50 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  type: characterTypeEnum('type').default('animal'),
+  status: characterStatusEnum('status').default('active'),
+  
+  // Model relationship
+  modelId: integer('model_id').references(() => threedModels.id, { onDelete: 'set null' }),
+  
+  // Animation
+  animations: characterAnimationEnum('animations').array().default([]),
+  defaultAnimation: characterAnimationEnum('default_animation'),
+  animationSpeed: decimal('animation_speed', { precision: 4, scale: 2 }).default('1.0'),
+  
+  // Enhanced Movement
+  isMovable: boolean('is_movable').default(false),
+  movementType: characterMovementTypeEnum('movement_type').default('stationary'),
+  movementPattern: varchar('movement_pattern', { length: 50 }), // Legacy, keep for compatibility
+  movementRadius: decimal('movement_radius', { precision: 5, scale: 2 }),
+  movementSpeed: decimal('movement_speed', { precision: 4, scale: 2 }).default('0.5'),
+  
+  // New: Patrol waypoints (store as JSON array of {x, y, z})
+  patrolWaypoints: jsonb('patrol_waypoints').default([]),
+  
+  // New: Follow target (could be plantId, characterId, or 'camera')
+  followTarget: varchar('follow_target', { length: 50 }),
+  followDistance: decimal('follow_distance', { precision: 4, scale: 2 }).default('2.0'),
+  
+  // New: Teleport positions
+  teleportPositions: jsonb('teleport_positions').default([]),
+  teleportInterval: integer('teleport_interval'), // seconds between teleports
+  
+  // Enhanced Interaction
+  interactable: boolean('interactable').default(true),
+  interactionMessage: text('interaction_message'),
+  soundEffect: varchar('sound_effect', { length: 255 }),
+  
+  // New: Emote system
+  defaultEmote: characterEmoteEnum('default_emote').default('none'),
+  emoteOnInteract: characterEmoteEnum('emote_on_interact').default('happy'),
+  
+  // New: Time-based activation
+  activeStartHour: integer('active_start_hour'), // 0-23
+  activeEndHour: integer('active_end_hour'),
+  
+  // New: Weather sensitivity
+  weatherSensitivity: characterWeatherSensitivityEnum('weather_sensitivity').default('all'),
+  
+  // Position (absolute world coordinates)
+  bedId: integer('bed_id').references(() => threedBeds.id, { onDelete: 'set null' }),
+  positionX: decimal('position_x', { precision: 8, scale: 2 }).default('0'),
+  positionY: decimal('position_y', { precision: 8, scale: 2 }).default('0'),
+  positionZ: decimal('position_z', { precision: 8, scale: 2 }).default('0'),
+  rotation: decimal('rotation', { precision: 8, scale: 2 }).default('0'),
+  
+  // Scale and appearance
+  scale: decimal('scale', { precision: 5, scale: 2 }).default('1'),
+  scaleMultiplier: decimal('scale_multiplier', { precision: 5, scale: 2 }).default('1'),
+  colorTint: varchar('color_tint', { length: 20 }),
+  
+  // New: Visibility
+  visible: boolean('visible').default(true),
+  visibleDistance: decimal('visible_distance', { precision: 5, scale: 2 }).default('30.0'),
+  
+  // Metadata
+  isActive: boolean('is_active').default(true),
+  metadata: jsonb('metadata').default({}),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, (table) => ({
+  characterIdIdx: uniqueIndex('idx_threed_characters_character_id').on(table.characterId),
+  nameIdx: index('idx_threed_characters_name').on(table.name),
+  typeIdx: index('idx_threed_characters_type').on(table.type),
+  statusIdx: index('idx_threed_characters_status').on(table.status),
+  movementTypeIdx: index('idx_threed_characters_movement_type').on(table.movementType),
+  modelIdx: index('idx_threed_characters_model').on(table.modelId),
+  bedIdx: index('idx_threed_characters_bed').on(table.bedId),
+  visibleIdx: index('idx_threed_characters_visible').on(table.visible),
+}));
+
+// Add character-specific file to threedModelFiles if needed
+// (no changes needed - model files work the same)
+
+// Update relationships
+export const threedCharactersRelations = relations(threedCharacters, ({ one }) => ({
+  model: one(threedModels, {
+    fields: [threedCharacters.modelId],
+    references: [threedModels.id],
+  }),
+  bed: one(threedBeds, {
+    fields: [threedCharacters.bedId],
+    references: [threedBeds.id],
+  }),
+}));
+
+// ============================================
+// ## Schema Updated 2026-05-31
+// ## Added characters
 // ============================================

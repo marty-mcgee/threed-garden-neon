@@ -1,7 +1,7 @@
 // services/CCTVPoller.ts
 import axios from 'axios';
 import { db } from '@/lib/db/client';
-import { cctvCameras } from '@/lib/auth/schema';
+import { cctvCameras } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 
 export class CCTVPoller {

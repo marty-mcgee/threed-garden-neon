@@ -1,7 +1,7 @@
 // src/app/api/chp-historical/collisions/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { chpCollisions } from '@/lib/auth/schema';
+import { chpCollisions } from '@/lib/schema';
 import { desc, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

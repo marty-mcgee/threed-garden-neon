@@ -1,7 +1,7 @@
 // src/app/api/threed/models/[id]/files/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedModels, threedModelFiles } from '@/lib/auth/schema';
+import { threedModels, threedModelFiles } from '@/lib/schema';
 import { eq } from 'drizzle-orm';
 import { put } from '@vercel/blob';
 

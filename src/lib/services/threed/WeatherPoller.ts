@@ -1,6 +1,6 @@
 // src/lib/services/threed/WeatherPoller.ts
 import { db } from '@/lib/db/client';
-import { threedWeatherLogs } from '@/lib/auth/schema';
+import { threedWeatherLogs } from '@/lib/schema';
 import { desc, sql } from 'drizzle-orm';
 
 export class WeatherPoller {

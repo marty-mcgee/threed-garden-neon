@@ -1,7 +1,7 @@
 // app/api/cctv/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { cctvCameras } from '@/lib/auth/schema';
+import { cctvCameras } from '@/lib/schema';
 import { eq, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

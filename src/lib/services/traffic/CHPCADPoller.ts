@@ -2,7 +2,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { db } from '@/lib/db/client';
-import { chpCadIncidents, chpCadCenters } from '@/lib/auth/schema';
+import { chpCadIncidents, chpCadCenters } from '@/lib/schema';
 import { eq, and, sql } from 'drizzle-orm';
 // import { getCityCoordinates } from '@/lib/utils/cityGeocoder';
 

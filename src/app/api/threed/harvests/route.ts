@@ -1,7 +1,7 @@
 // src/app/api/threed/harvests/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedHarvests, threedPlantings, threedPlants, threedBeds } from '@/lib/auth/schema';
+import { threedHarvests, threedPlantings, threedPlants, threedBeds } from '@/lib/schema';
 import { desc, eq, and, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

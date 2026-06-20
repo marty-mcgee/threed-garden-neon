@@ -1,6 +1,6 @@
 // src/lib/scripts/backfill-511-coords.ts
 import { db } from '@/lib/db/client';
-import { bayAreaTrafficEvents } from '@/lib/auth/schema';
+import { bayAreaTrafficEvents } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 
 async function backfill511Coords() {

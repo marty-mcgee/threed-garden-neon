@@ -1,7 +1,7 @@
 // src/app/api/threed/logs/stats/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { threedSystemLogs } from '@/lib/auth/schema';
+import { threedSystemLogs } from '@/lib/schema';
 import { sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';

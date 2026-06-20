@@ -1,7 +1,7 @@
 // src/app/api/calfire/route.ts
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/client';
-import { calfireIncidents } from '@/lib/auth/schema';
+import { calfireIncidents } from '@/lib/schema';
 import { desc, eq } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
